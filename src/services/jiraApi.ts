@@ -71,7 +71,6 @@ export interface JiraTokenResponse {
 
 export interface JiraOAuthState {
   baseUrl: string;
-  codeVerifier: string;
   clientId: string;
   redirectUri: string;
 }
@@ -83,42 +82,9 @@ class JiraApiService {
   private clientId: string | null = null;
 
   /**
-   * Generate a secure random string for PKCE code verifier
-   */
-  private generateCodeVerifier(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return btoa(String.fromCharCode.apply(null, Array.from(array)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
-  }
-
-  /**
-   * Generate code challenge from code verifier using SHA256
-   */
-  private async generateCodeChallenge(codeVerifier: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(codeVerifier);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    const base64String = btoa(
-      String.fromCharCode.apply(null, Array.from(new Uint8Array(digest)))
-    );
-    return base64String
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=/g, "");
-  }
-
-  /**
    * Get the OAuth authorization URL for JIRA
    */
-  async getAuthorizationUrl(
-    config: JiraOAuthConfig
-  ): Promise<{ url: string; codeVerifier: string }> {
-    const codeVerifier = this.generateCodeVerifier();
-    const codeChallenge = await this.generateCodeChallenge(codeVerifier);
-
+  async getAuthorizationUrl(config: JiraOAuthConfig): Promise<{ url: string }> {
     // Store config for later use
     this.baseUrl = config.baseUrl.endsWith("/")
       ? config.baseUrl.slice(0, -1)
@@ -128,7 +94,6 @@ class JiraApiService {
     // Store state in sessionStorage for OAuth callback
     const state = JSON.stringify({
       baseUrl: this.baseUrl,
-      codeVerifier,
       clientId: config.clientId,
       redirectUri: config.redirectUri,
     } as JiraOAuthState);
@@ -143,13 +108,12 @@ class JiraApiService {
       state: btoa(JSON.stringify({ baseUrl: this.baseUrl })),
       response_type: "code",
       prompt: "consent",
-      code_challenge: codeChallenge,
       code_challenge_method: "S256",
     });
 
     const authUrl = `https://auth.atlassian.com/authorize?${params.toString()}`;
 
-    return { url: authUrl, codeVerifier };
+    return { url: authUrl };
   }
 
   /**
@@ -175,10 +139,7 @@ class JiraApiService {
       this.clientId = oauthState.clientId;
 
       // Exchange authorization code for access token
-      const tokenResponse = await this.exchangeCodeForToken(
-        code,
-        oauthState.codeVerifier
-      );
+      const tokenResponse = await this.exchangeCodeForToken(code);
 
       // Store access token
       this.accessToken = tokenResponse.access_token;
@@ -213,10 +174,7 @@ class JiraApiService {
   /**
    * Exchange authorization code for access token
    */
-  private async exchangeCodeForToken(
-    code: string,
-    codeVerifier: string
-  ): Promise<JiraTokenResponse> {
+  private async exchangeCodeForToken(code: string): Promise<JiraTokenResponse> {
     if (!this.clientId) {
       throw new Error("Client ID not set");
     }
@@ -234,7 +192,6 @@ class JiraApiService {
       clientId: this.clientId,
       redirectUri: redirectUri,
       hasCode: !!code,
-      hasCodeVerifier: !!codeVerifier,
       currentUrl: window.location.href,
     });
 
@@ -248,7 +205,6 @@ class JiraApiService {
         client_id: this.clientId,
         code,
         redirect_uri: redirectUri,
-        code_verifier: codeVerifier,
       }),
     });
 
@@ -263,9 +219,7 @@ class JiraApiService {
           redirectUri: redirectUri,
           grantType: "authorization_code",
           hasCode: !!code,
-          hasCodeVerifier: !!codeVerifier,
           codeLength: code?.length,
-          codeVerifierLength: codeVerifier?.length,
         },
         troubleshooting: {
           checkClientId: "Verify this matches your Atlassian OAuth app exactly",
