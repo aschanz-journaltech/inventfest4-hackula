@@ -15,6 +15,7 @@
 
 .app-title {
   flex: 1;
+  text-align: center;
 }
 
 .app-title h1 {
@@ -24,6 +25,7 @@
   font-weight: 700;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
 }
 
