@@ -44,6 +44,41 @@ export interface JiraIssue {
     priority: {
       name: string;
     };
+    // Story points - try multiple common field IDs
+    customfield_10016?: number; // Story Points (common field ID)
+    customfield_10004?: number; // Alternative story points field
+    customfield_10002?: number; // Alternative story points field
+    customfield_10003?: number; // Alternative story points field
+    customfield_10005?: number; // Alternative story points field
+    // Time tracking fields
+    timeoriginalestimate?: number; // Original time estimate in seconds
+    timeestimate?: number; // Remaining time estimate in seconds
+    timespent?: number; // Time spent in seconds
+    aggregatetimeoriginalestimate?: number; // Total original estimate including subtasks
+    aggregatetimespent?: number; // Total time spent including subtasks
+    // Time tracking object
+    timetracking?: {
+      originalEstimate?: string;
+      remainingEstimate?: string;
+      timeSpent?: string;
+      originalEstimateSeconds?: number;
+      remainingEstimateSeconds?: number;
+      timeSpentSeconds?: number;
+    };
+    // Worklog for time entries
+    worklog?: {
+      total: number;
+      maxResults: number;
+      startAt: number;
+      worklogs: Array<{
+        timeSpentSeconds: number;
+        timeSpent: string;
+        created: string;
+        updated: string;
+      }>;
+    };
+    // Allow any custom field
+    [key: string]: unknown;
   };
 }
 
@@ -342,6 +377,58 @@ class JiraApiService {
   }
 
   /**
+   * Helper method to find story points field ID
+   */
+  async findStoryPointsField(projectKey: string): Promise<string | null> {
+    if (!this.api) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      const response = await this.api.get("/search/jql", {
+        params: {
+          jql: `project = "${projectKey}"`,
+          maxResults: 1,
+          fields: "*all",
+        },
+      });
+
+      if (response.data.issues && response.data.issues.length > 0) {
+        const issue = response.data.issues[0];
+        const fields = issue.fields;
+
+        // Look for common story points field patterns
+        const candidates = Object.keys(fields).filter((key) => {
+          const value = fields[key];
+          return (
+            key.includes("customfield") &&
+            typeof value === "number" &&
+            value > 0 &&
+            value <= 100 // Likely story point range
+          );
+        });
+
+        console.log(
+          "🔍 Story points field candidates:",
+          candidates.map((key) => ({
+            field: key,
+            value: fields[key],
+            type: typeof fields[key],
+          }))
+        );
+
+        // Return the first candidate or null
+        return candidates.length > 0 ? candidates[0] : null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error finding story points field:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get issues from a specific project
    */
   async getIssues(
@@ -357,9 +444,72 @@ class JiraApiService {
         params: {
           jql: `project = "${projectKey}"`,
           maxResults,
-          fields: "summary,status,assignee,created,updated,priority",
+          fields: "*all",
         },
       });
+
+      // Debug logging to see what fields are available
+      if (response.data.issues && response.data.issues.length > 0) {
+        const firstIssue = response.data.issues[0];
+        console.log(
+          "🔍 Available fields in first issue:",
+          Object.keys(firstIssue.fields)
+        );
+        console.log(
+          "📊 Story points field candidates:",
+          Object.keys(firstIssue.fields).filter(
+            (key) =>
+              key.includes("customfield") ||
+              key.toLowerCase().includes("story") ||
+              key.toLowerCase().includes("point")
+          )
+        );
+        console.log("⏱️ Time tracking fields:", {
+          timeoriginalestimate: firstIssue.fields.timeoriginalestimate,
+          timeestimate: firstIssue.fields.timeestimate,
+          timespent: firstIssue.fields.timespent,
+          aggregatetimeoriginalestimate:
+            firstIssue.fields.aggregatetimeoriginalestimate,
+          aggregatetimespent: firstIssue.fields.aggregatetimespent,
+        });
+        console.log("🎯 Checking common story point field IDs:", {
+          customfield_10016: firstIssue.fields.customfield_10016,
+          customfield_10004: firstIssue.fields.customfield_10004,
+          customfield_10002: firstIssue.fields.customfield_10002,
+          customfield_10003: firstIssue.fields.customfield_10003,
+          customfield_10005: firstIssue.fields.customfield_10005,
+        });
+
+        // Check for actual numeric values in custom fields that could be story points
+        const numericCustomFields = Object.keys(firstIssue.fields)
+          .filter((key) => key.startsWith("customfield_"))
+          .map((key) => ({
+            field: key,
+            value: firstIssue.fields[key],
+            type: typeof firstIssue.fields[key],
+          }))
+          .filter(
+            (item) =>
+              typeof item.value === "number" &&
+              item.value > 0 &&
+              item.value <= 100
+          );
+
+        console.log(
+          "🔢 Numeric custom fields (potential story points):",
+          numericCustomFields
+        );
+
+        // Check timetracking object which might contain the actual time data
+        console.log("🕒 Timetracking object:", firstIssue.fields.timetracking);
+
+        // Check worklog for time entries
+        console.log("📝 Worklog info:", {
+          hasWorklog: !!firstIssue.fields.worklog,
+          worklogTotal: firstIssue.fields.worklog?.total || 0,
+        });
+      }
+
       return response.data;
     } catch (error) {
       console.error("Error fetching issues:", error);

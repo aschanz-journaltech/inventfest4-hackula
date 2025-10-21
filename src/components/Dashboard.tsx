@@ -5,7 +5,31 @@ import {
   type JiraProject,
   type JiraIssue,
 } from "../services/jiraApi";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar, Scatter } from "react-chartjs-2";
 import "./Dashboard.css";
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface DashboardProps {
   user: JiraUser;
@@ -19,6 +43,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showIssues, setShowIssues] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<string>("all");
   const [activeGraphs, setActiveGraphs] = useState<{
     boxplot: boolean;
     scatterplot: boolean;
@@ -82,10 +108,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   );
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  // Filter issues by time period
+  const filterIssuesByTime = (
+    issues: JiraIssue[],
+    timeFilter: string
+  ): JiraIssue[] => {
+    if (timeFilter === "all") return issues;
+
+    const now = new Date();
+    const cutoffDate = new Date();
+
+    switch (timeFilter) {
+      case "1h":
+        cutoffDate.setHours(now.getHours() - 1);
+        break;
+      case "1d":
+        cutoffDate.setDate(now.getDate() - 1);
+        break;
+      case "1w":
+        cutoffDate.setDate(now.getDate() - 7);
+        break;
+      case "1m":
+        cutoffDate.setMonth(now.getMonth() - 1);
+        break;
+      case "3m":
+        cutoffDate.setMonth(now.getMonth() - 3);
+        break;
+      default:
+        return issues;
+    }
+
+    return issues.filter((issue) => {
+      const updatedDate = new Date(issue.fields.updated);
+      return updatedDate >= cutoffDate;
     });
   };
 
@@ -105,6 +163,312 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  // Data processing functions for charts
+  const processIssuesForCharts = (issues: JiraIssue[]) => {
+    console.log("🔍 Processing issues for charts:", issues.length);
+
+    // Filter issues by time period first
+    const filteredIssues = filterIssuesByTime(issues, timeFilter);
+    console.log(
+      `⏰ Filtered to ${filteredIssues.length} issues from ${
+        timeFilter === "all" ? "all time" : `past ${timeFilter}`
+      }`
+    );
+
+    const processed = filteredIssues.map((issue) => {
+      // Try multiple common story points field IDs and look for numeric values
+      let storyPoints =
+        issue.fields.customfield_10016 ||
+        issue.fields.customfield_10004 ||
+        issue.fields.customfield_10002 ||
+        issue.fields.customfield_10003 ||
+        issue.fields.customfield_10005 ||
+        0;
+
+      // If no story points found in common fields, look for any numeric custom field
+      if (storyPoints === 0) {
+        const numericFields = Object.keys(issue.fields)
+          .filter((key) => key.startsWith("customfield_"))
+          .map((key) => ({ field: key, value: issue.fields[key] }))
+          .filter(
+            (item) =>
+              typeof item.value === "number" &&
+              item.value > 0 &&
+              item.value <= 100
+          );
+
+        if (numericFields.length > 0) {
+          console.log(
+            `🎯 Found potential story points for ${issue.key}:`,
+            numericFields[0]
+          );
+          storyPoints = numericFields[0].value as number;
+        }
+      }
+
+      // Try multiple sources for time spent (we know this is working!)
+      let timeSpentHours = 0;
+
+      // Method 1: Direct timespent field (this should work based on debug)
+      if (issue.fields.timespent) {
+        timeSpentHours = issue.fields.timespent / 3600;
+      }
+      // Method 2: timetracking object (this should also work)
+      else if (issue.fields.timetracking?.timeSpentSeconds) {
+        timeSpentHours = issue.fields.timetracking.timeSpentSeconds / 3600;
+      }
+      // Method 3: worklog entries
+      else if (
+        issue.fields.worklog?.worklogs &&
+        issue.fields.worklog.worklogs.length > 0
+      ) {
+        const totalSeconds = issue.fields.worklog.worklogs.reduce(
+          (sum, worklog) => sum + worklog.timeSpentSeconds,
+          0
+        );
+        timeSpentHours = totalSeconds / 3600;
+      }
+
+      return {
+        key: issue.key,
+        summary: issue.fields.summary,
+        storyPoints,
+        timeSpentHours,
+      };
+    });
+
+    console.log("📊 Processed issues sample:", processed.slice(0, 3));
+
+    const filtered = processed.filter(
+      (issue) => issue.storyPoints > 0 || issue.timeSpentHours > 0
+    );
+    console.log(
+      `✅ Filtered issues: ${filtered.length} out of ${processed.length} have story points or logged time`
+    );
+
+    const withStoryPoints = filtered.filter((issue) => issue.storyPoints > 0);
+    console.log(`📈 Issues with story points: ${withStoryPoints.length}`);
+
+    const withTimeLogged = filtered.filter((issue) => issue.timeSpentHours > 0);
+    console.log(`⏱️ Issues with logged time: ${withTimeLogged.length}`);
+
+    const withBothFields = filtered.filter(
+      (issue) => issue.storyPoints > 0 && issue.timeSpentHours > 0
+    );
+    console.log(
+      `🎯 Issues with both story points AND logged time: ${withBothFields.length}`
+    );
+
+    return filtered;
+  };
+
+  const createBoxplotData = () => {
+    const processedIssues = processIssuesForCharts(issues);
+    const storyPointGroups: { [key: number]: number[] } = {};
+
+    processedIssues.forEach((issue) => {
+      if (issue.storyPoints > 0 && issue.timeSpentHours > 0) {
+        if (!storyPointGroups[issue.storyPoints]) {
+          storyPointGroups[issue.storyPoints] = [];
+        }
+        storyPointGroups[issue.storyPoints].push(issue.timeSpentHours);
+      }
+    });
+
+    const labels = Object.keys(storyPointGroups).sort(
+      (a, b) => Number(a) - Number(b)
+    );
+    const data = labels.map((sp) => {
+      const hours = storyPointGroups[Number(sp)].sort((a, b) => a - b);
+      const q1 = hours[Math.floor(hours.length * 0.25)];
+      const median = hours[Math.floor(hours.length * 0.5)];
+      const q3 = hours[Math.floor(hours.length * 0.75)];
+      const min = hours[0];
+      const max = hours[hours.length - 1];
+      return { min, q1, median, q3, max, count: hours.length };
+    });
+
+    return {
+      labels: labels.map((sp) => `${sp} SP`),
+      datasets: [
+        {
+          label: "Actual Hours Logged per Story Point",
+          data: data.map((d) => d.median),
+          backgroundColor: "rgba(0, 82, 204, 0.6)",
+          borderColor: "rgba(0, 82, 204, 1)",
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  const createScatterplotData = () => {
+    const processedIssues = processIssuesForCharts(issues);
+    const scatterData = processedIssues
+      .filter((issue) => issue.storyPoints > 0 && issue.timeSpentHours > 0)
+      .map((issue) => ({
+        x: issue.storyPoints,
+        y: issue.timeSpentHours,
+        label: issue.key,
+      }));
+
+    return {
+      datasets: [
+        {
+          label: "Story Points vs Actual Hours Logged",
+          data: scatterData,
+          backgroundColor: "rgba(0, 135, 90, 0.6)",
+          borderColor: "rgba(0, 135, 90, 1)",
+          pointRadius: 6,
+          pointHoverRadius: 8,
+        },
+      ],
+    };
+  };
+
+  const createHistogramData = () => {
+    const processedIssues = processIssuesForCharts(issues);
+    const hourEstimates = processedIssues
+      .filter((issue) => issue.timeSpentHours > 0)
+      .map((issue) => issue.timeSpentHours);
+
+    const buckets = [
+      { label: "0-5h", min: 0, max: 5 },
+      { label: "5-10h", min: 5, max: 10 },
+      { label: "10-20h", min: 10, max: 20 },
+      { label: "20-40h", min: 20, max: 40 },
+      { label: "40+h", min: 40, max: Infinity },
+    ];
+
+    const bucketCounts = buckets.map(
+      (bucket) =>
+        hourEstimates.filter(
+          (hours) => hours >= bucket.min && hours < bucket.max
+        ).length
+    );
+
+    return {
+      labels: buckets.map((b) => b.label),
+      datasets: [
+        {
+          label: "Frequency of Actual Hours Logged",
+          data: bucketCounts,
+          backgroundColor: "rgba(255, 139, 0, 0.6)",
+          borderColor: "rgba(255, 139, 0, 1)",
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  const renderRealChart = (
+    title: string,
+    description: string,
+    graphType: string
+  ) => {
+    const processedIssues = processIssuesForCharts(issues);
+
+    if (processedIssues.length === 0) {
+      return (
+        <div className="graph-placeholder">
+          <h4>{title}</h4>
+          <div className="empty-graph">
+            <p>No data available with story points or logged time</p>
+            <p className="data-hint">
+              Make sure your JIRA issues have story points and logged work time
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    let chartComponent;
+    let chartData;
+    let options;
+
+    switch (graphType) {
+      case "boxplot":
+        chartData = createBoxplotData();
+        options = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { display: true, text: title },
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "Hours" },
+            },
+            x: {
+              title: { display: true, text: "Story Points" },
+            },
+          },
+        };
+        chartComponent = <Bar data={chartData} options={options} />;
+        break;
+
+      case "scatterplot":
+        chartData = createScatterplotData();
+        options = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { display: true, text: title },
+          },
+          scales: {
+            x: {
+              title: { display: true, text: "Story Points" },
+              beginAtZero: true,
+            },
+            y: {
+              title: { display: true, text: "Hours" },
+              beginAtZero: true,
+            },
+          },
+        };
+        chartComponent = <Scatter data={chartData} options={options} />;
+        break;
+
+      case "histogram":
+        chartData = createHistogramData();
+        options = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: { display: true, text: title },
+            legend: { display: false },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: "Number of Issues" },
+            },
+            x: {
+              title: { display: true, text: "Hour Estimate Ranges" },
+            },
+          },
+        };
+        chartComponent = <Bar data={chartData} options={options} />;
+        break;
+
+      default:
+        return null;
+    }
+
+    return (
+      <div className="graph-placeholder real-chart">
+        <h4>{title}</h4>
+        <p className="chart-description">{description}</p>
+        <div className="chart-container">{chartComponent}</div>
+        <div className="chart-stats">
+          <span>📊 {processedIssues.length} issues with data</span>
+        </div>
+      </div>
+    );
+  };
+
   const toggleGraph = (graphType: keyof typeof activeGraphs) => {
     setActiveGraphs((prev) => ({
       ...prev,
@@ -112,99 +476,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }));
   };
 
-  const renderEmptyGraph = (
-    title: string,
-    description: string,
-    graphType?: string
-  ) => {
-    const getSkeletonContent = () => {
-      switch (graphType) {
-        case "boxplot":
-          return (
-            <div className="graph-skeleton boxplot-skeleton">
-              <div className="boxplot-items">
-                {[1, 2, 3, 5, 8].map((point) => (
-                  <div key={point} className="boxplot-item">
-                    <div className="boxplot-label">{point}pt</div>
-                    <div className="boxplot-box">
-                      <div className="boxplot-whisker-top"></div>
-                      <div className="boxplot-quartile-box">
-                        <div className="boxplot-median"></div>
-                      </div>
-                      <div className="boxplot-whisker-bottom"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        case "scatterplot":
-          return (
-            <div className="graph-skeleton scatterplot-skeleton">
-              <div className="scatterplot-points">
-                {Array.from({ length: 20 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="scatter-point"
-                    style={{
-                      left: `${Math.random() * 80 + 10}%`,
-                      bottom: `${Math.random() * 70 + 15}%`,
-                    }}
-                  ></div>
-                ))}
-              </div>
-              <div className="axis-labels">
-                <div className="x-axis-label">Story Points</div>
-                <div className="y-axis-label">Hours</div>
-              </div>
-            </div>
-          );
-        case "histogram":
-          return (
-            <div className="graph-skeleton histogram-skeleton">
-              <div className="histogram-bars">
-                {[20, 45, 80, 60, 35, 15, 25].map((height, index) => (
-                  <div
-                    key={index}
-                    className="histogram-bar"
-                    style={{ height: `${height}%` }}
-                  ></div>
-                ))}
-              </div>
-              <div className="histogram-labels">
-                <span>0-5h</span>
-                <span>5-10h</span>
-                <span>10-20h</span>
-                <span>20-40h</span>
-                <span>40+h</span>
-              </div>
-            </div>
-          );
-        default:
-          return (
-            <div className="graph-skeleton">
-              <div className="skeleton-bars">
-                <div className="skeleton-bar" style={{ height: "60%" }}></div>
-                <div className="skeleton-bar" style={{ height: "80%" }}></div>
-                <div className="skeleton-bar" style={{ height: "40%" }}></div>
-                <div className="skeleton-bar" style={{ height: "90%" }}></div>
-                <div className="skeleton-bar" style={{ height: "70%" }}></div>
-              </div>
-            </div>
-          );
-      }
-    };
-
-    return (
-      <div className="graph-placeholder">
-        <h4>{title}</h4>
-        <div className="empty-graph">
-          <p>{description}</p>
-          {getSkeletonContent()}
-        </div>
-      </div>
-    );
-  };
+  // Calculate filtered issues for display
+  const filteredIssues = filterIssuesByTime(issues, timeFilter);
 
   return (
     <div className="dashboard">
@@ -271,7 +544,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 }`}
                 onClick={() => toggleGraph("boxplot")}
               >
-                � Boxplot - Hour Ranges per Story Point
+                📦 Boxplot - Actual Hours per Story Point
               </button>
               <button
                 className={`graph-toggle-btn ${
@@ -279,7 +552,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 }`}
                 onClick={() => toggleGraph("scatterplot")}
               >
-                📈 Scatterplot - Linearity & Scaling Analysis
+                📈 Scatterplot - Story Points vs Logged Hours
               </button>
               <button
                 className={`graph-toggle-btn ${
@@ -287,8 +560,62 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 }`}
                 onClick={() => toggleGraph("histogram")}
               >
-                � Histogram - Common Estimate Sizes
+                📊 Histogram - Distribution of Logged Hours
               </button>
+            </div>
+
+            <div className="time-filter-section">
+              <h4>Time Period Filter</h4>
+              <div className="time-filter-buttons">
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "all" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("all")}
+                >
+                  All Time
+                </button>
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "1h" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("1h")}
+                >
+                  Past Hour
+                </button>
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "1d" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("1d")}
+                >
+                  Past Day
+                </button>
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "1w" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("1w")}
+                >
+                  Past Week
+                </button>
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "1m" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("1m")}
+                >
+                  Past Month
+                </button>
+                <button
+                  className={`time-filter-btn ${
+                    timeFilter === "3m" ? "active" : ""
+                  }`}
+                  onClick={() => setTimeFilter("3m")}
+                >
+                  Past 3 Months
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -297,21 +624,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         {selectedProject && (
           <div className="graphs-section">
             {activeGraphs.boxplot &&
-              renderEmptyGraph(
-                "Boxplot - Hour Ranges per Story Point Estimate",
-                "Shows the distribution of hours for each story point value, revealing estimation patterns and outliers",
+              renderRealChart(
+                "Boxplot - Actual Hours per Story Point",
+                "Shows the distribution of actual logged hours for each story point value, revealing real effort patterns",
                 "boxplot"
               )}
             {activeGraphs.scatterplot &&
-              renderEmptyGraph(
-                "Scatterplot - Linearity & Scaling Analysis",
-                "Displays the relationship between story points and actual hours to analyze estimation accuracy and scaling",
+              renderRealChart(
+                "Scatterplot - Story Points vs Logged Hours",
+                "Displays the relationship between story points and actual logged hours to analyze real effort scaling",
                 "scatterplot"
               )}
             {activeGraphs.histogram &&
-              renderEmptyGraph(
-                "Histogram - Common Estimate Sizes",
-                "Shows the frequency distribution of hour estimates to identify most common estimation ranges",
+              renderRealChart(
+                "Histogram - Distribution of Logged Hours",
+                "Shows the frequency distribution of actual logged hours to identify common work effort ranges",
                 "histogram"
               )}
           </div>
@@ -323,44 +650,79 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
         {selectedProject && issues.length > 0 && (
           <div className="issues-section">
-            <h3>Issues in {selectedProject}</h3>
-            <div className="issues-grid">
-              {issues.map((issue) => (
-                <div key={issue.id} className="issue-card">
-                  <div className="issue-header">
-                    <span className="issue-key">{issue.key}</span>
-                    <span
-                      className="issue-status"
-                      style={{
-                        backgroundColor: getStatusColor(
-                          issue.fields.status.statusCategory.colorName
-                        ),
-                        color: "white",
-                      }}
-                    >
-                      {issue.fields.status.name}
-                    </span>
-                  </div>
-                  <h4 className="issue-summary">{issue.fields.summary}</h4>
-                  <div className="issue-details">
-                    <div className="issue-meta">
-                      <span className="issue-priority">
-                        Priority: {issue.fields.priority.name}
-                      </span>
-                      {issue.fields.assignee && (
-                        <span className="issue-assignee">
-                          Assignee: {issue.fields.assignee.displayName}
-                        </span>
-                      )}
-                    </div>
-                    <div className="issue-dates">
-                      <span>Created: {formatDate(issue.fields.created)}</span>
-                      <span>Updated: {formatDate(issue.fields.updated)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div
+              className="issues-header"
+              onClick={() => setShowIssues(!showIssues)}
+            >
+              <h3>
+                Issues in {selectedProject} ({filteredIssues.length}
+                {timeFilter !== "all" &&
+                  ` filtered by ${
+                    timeFilter === "1h"
+                      ? "past hour"
+                      : timeFilter === "1d"
+                      ? "past day"
+                      : timeFilter === "1w"
+                      ? "past week"
+                      : timeFilter === "1m"
+                      ? "past month"
+                      : timeFilter === "3m"
+                      ? "past 3 months"
+                      : timeFilter
+                  }`}
+                {filteredIssues.length !== issues.length &&
+                  ` of ${issues.length} total`}
+                )
+              </h3>
+              <span className={`dropdown-arrow ${showIssues ? "open" : ""}`}>
+                {showIssues ? "▼" : "▶"}
+              </span>
             </div>
+            {showIssues && (
+              <div className="issues-dropdown">
+                <div className="issues-grid">
+                  {filteredIssues.map((issue) => (
+                    <div key={issue.id} className="issue-card">
+                      <div className="issue-header">
+                        <span className="issue-key">{issue.key}</span>
+                        <span
+                          className="issue-status"
+                          style={{
+                            backgroundColor: getStatusColor(
+                              issue.fields.status.statusCategory.colorName
+                            ),
+                            color: "white",
+                          }}
+                        >
+                          {issue.fields.status.name}
+                        </span>
+                      </div>
+                      <h4 className="issue-summary">{issue.fields.summary}</h4>
+                      <div className="issue-details">
+                        <div className="issue-meta">
+                          <span className="issue-priority">
+                            Priority: {issue.fields.priority.name}
+                          </span>
+                          {issue.fields.assignee && (
+                            <span className="issue-assignee">
+                              Assignee: {issue.fields.assignee.displayName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="issue-dates">
+                          <span>
+                            Created: {formatDate(issue.fields.created)}
+                          </span>
+                          <span>
+                            Updated: {formatDate(issue.fields.updated)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
