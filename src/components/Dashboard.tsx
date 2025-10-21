@@ -1304,6 +1304,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             </span>
                           )}
                         </div>
+                        <div className="issue-metrics">
+                          <span className="issue-story-points">
+                            Story Points: {issue.fields.customfield_10021 || 0}
+                          </span>
+                          <span className="issue-time-logged">
+                            Time Logged: {
+                              (() => {
+                                let timeSpentHours = 0;
+                                if (issue.fields.timespent) {
+                                  timeSpentHours = issue.fields.timespent / 3600;
+                                } else if (issue.fields.timetracking?.timeSpentSeconds) {
+                                  timeSpentHours = issue.fields.timetracking.timeSpentSeconds / 3600;
+                                } else if (issue.fields.worklog?.worklogs && issue.fields.worklog.worklogs.length > 0) {
+                                  const totalSeconds = issue.fields.worklog.worklogs.reduce(
+                                    (sum, worklog) => sum + worklog.timeSpentSeconds,
+                                    0
+                                  );
+                                  timeSpentHours = totalSeconds / 3600;
+                                }
+                                return timeSpentHours > 0 ? `${timeSpentHours.toFixed(1)}h` : '0h';
+                              })()
+                            }
+                          </span>
+                        </div>
                         <div className="issue-dates">
                           <span>
                             Created: {formatDate(issue.fields.created)}
