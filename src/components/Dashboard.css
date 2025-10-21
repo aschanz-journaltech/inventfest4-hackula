@@ -466,7 +466,7 @@
   max-width: 95vw;
   max-height: 95vh;
   width: 1200px;
-  height: 800px;
+  /* let height be controlled by max-height and content */
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -505,31 +505,30 @@
 }
 
 .modal-chart {
-  flex: 1;
-  padding: 2rem;
+  flex: 1 1 auto;
+  padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
 }
 
 .modal-chart-container {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 500px;
-  max-height: 600px;
   width: 100%;
   position: relative;
+  /* allow chart to fully fill available vertical space */
+  min-height: 0;
 }
 
 .modal-chart-container > div {
-  flex: 1;
-  max-height: 500px !important;
+  flex: 1 1 auto;
   width: 100% !important;
 }
 
 .modal-chart-container canvas {
-  max-height: 500px !important;
-  max-width: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .modal-chart-stats {
@@ -546,7 +545,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 400px;
+  flex: 1 1 auto;
   color: #6b778c;
   text-align: center;
 }
