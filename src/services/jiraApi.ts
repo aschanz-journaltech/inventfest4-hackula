@@ -150,9 +150,27 @@ class JiraApiService {
       // Store access token
       this.accessToken = tokenResponse.access_token;
 
+      // First, get the accessible resources to find the cloud ID
+      const resources = await this.getAccessibleResources();
+      if (!resources || resources.length === 0) {
+        throw new Error("No accessible Jira sites found for this account");
+      }
+
+      // Find the resource that matches our base URL or use the first one
+      const resource = resources.find(r =>
+        this.baseUrl && r.url.includes(this.baseUrl.replace(/^https?:\/\//, ''))
+      ) || resources[0];
+
+      console.log("📍 Using Jira site:", resource.name, "- Cloud ID:", resource.id);
+
       // Create axios instance with Bearer token
+      // Use proxy in development to avoid CORS issues
+      const apiBaseURL = import.meta.env.DEV
+        ? `/api/jira/${resource.id}/rest/api/3`
+        : `https://api.atlassian.com/ex/jira/${resource.id}/rest/api/3`;
+
       this.api = axios.create({
-        baseURL: `${this.baseUrl}/rest/api/3`,
+        baseURL: apiBaseURL,
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
           Accept: "application/json",
