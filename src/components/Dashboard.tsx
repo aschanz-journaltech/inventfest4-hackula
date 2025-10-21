@@ -499,10 +499,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     );
 
     const buckets = [
-      { label: "0-5h", min: 0, max: 5 },
-      { label: "5-10h", min: 5, max: 10 },
-      { label: "10-20h", min: 10, max: 20 },
-      { label: "20-40h", min: 20, max: 40 },
+      { label: "0-2h", min: 0, max: 2 },
+      { label: "2-4h", min: 2, max: 4 },
+      { label: "4-6h", min: 4, max: 6 },
+      { label: "6-8h", min: 6, max: 8 },
+      { label: "8-10h", min: 8, max: 10 },
+      { label: "10-12h", min: 10, max: 12 },
+      { label: "12-16h", min: 12, max: 16 },
+      { label: "16-20h", min: 16, max: 20 },
+      { label: "20-24h", min: 20, max: 24 },
+      { label: "24-32h", min: 24, max: 32 },
+      { label: "32-40h", min: 32, max: 40 },
       { label: "40+h", min: 40, max: Infinity },
     ];
 
@@ -563,8 +570,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       }, // Lavender
     ];
 
-    // Create datasets for each individual story point value
-    const datasets = uniqueStoryPoints.map((storyPoint, index) => {
+    // Create a separate histogram for each story point value
+    const histograms = uniqueStoryPoints.map((storyPoint, index) => {
       const issuesWithThisSP = issuesWithBothFields.filter(
         (issue) => issue.storyPoints === storyPoint
       );
@@ -583,44 +590,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       const colors = colorPalette[colorIndex];
 
       return {
-        label: `${storyPoint} SP`,
-        data: bucketCounts,
-        backgroundColor: colors.color,
-        borderColor: colors.borderColor,
-        borderWidth: 1,
+        storyPoint,
+        labels: buckets.map((b) => b.label),
+        datasets: [
+          {
+            label: `${storyPoint} SP`,
+            data: bucketCounts,
+            backgroundColor: colors.color,
+            borderColor: colors.borderColor,
+            borderWidth: 1,
+          },
+        ],
+        totalIssues: issuesWithThisSP.length,
       };
-    });
+    }).filter((histogram) => histogram.totalIssues > 0);
 
-    // Add a dataset for issues without story points (if any exist)
-    const issuesWithoutSP = processedIssues.filter(
-      (issue) => issue.timeSpentHours > 0 && issue.storyPoints === 0
-    );
-
-    if (issuesWithoutSP.length > 0) {
-      const bucketCountsNoSP = buckets.map(
-        (bucket) =>
-          issuesWithoutSP.filter(
-            (issue) =>
-              issue.timeSpentHours >= bucket.min &&
-              issue.timeSpentHours < bucket.max
-          ).length
-      );
-
-      datasets.push({
-        label: "No Story Points",
-        data: bucketCountsNoSP,
-        backgroundColor: "rgba(128, 128, 128, 0.6)",
-        borderColor: "rgba(128, 128, 128, 1)",
-        borderWidth: 1,
-      });
-    }
-
-    return {
-      labels: buckets.map((b) => b.label),
-      datasets: datasets.filter((dataset) =>
-        dataset.data.some((count) => count > 0)
-      ), // Only show datasets with data
-    };
+    return histograms;
   };
 
   const renderRealChart = (
@@ -786,40 +771,63 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         chartComponent = <Scatter data={chartData} options={options} />;
         break;
 
-      case "histogram":
-        chartData = createHistogramData();
-        options = {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            title: { display: true, text: title },
-            legend: {
-              display: true,
-              position: "top" as const,
-              labels: {
-                usePointStyle: true,
-                padding: 15,
-              },
-            },
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: { display: true, text: "Number of Issues" },
-            },
-            x: {
-              title: { display: true, text: "Hours Logged" },
-            },
-          },
-          datasets: {
-            bar: {
-              categoryPercentage: 0.8, // Controls space between groups of bars
-              barPercentage: 0.9, // Controls space between individual bars
-            },
-          },
-        };
-        chartComponent = <Bar data={chartData} options={options} />;
+      case "histogram": {
+        const histograms = createHistogramData();
+        if (histograms.length === 0) {
+          return (
+            <div className="graph-placeholder">
+              <h4>{title}</h4>
+              <div className="empty-graph">
+                <p>No data available with story points or logged time</p>
+                <p className="data-hint">
+                  Make sure your JIRA issues have story points and logged work time
+                </p>
+              </div>
+            </div>
+          );
+        }
+        chartComponent = (
+          <div className="histogram-container">
+            {histograms.map((histogram) => {
+              const chartData = {
+                labels: histogram.labels,
+                datasets: histogram.datasets,
+              };
+              const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  title: {
+                    display: true,
+                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues)`,
+                    font: { size: 11 }
+                  },
+                  legend: {
+                    display: false,
+                  },
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Issues", font: { size: 10 } },
+                    ticks: { font: { size: 9 } },
+                  },
+                  x: {
+                    title: { display: true, text: "Hours", font: { size: 10 } },
+                    ticks: { font: { size: 9 } },
+                  },
+                },
+              };
+              return (
+                <div key={histogram.storyPoint} style={{ minHeight: '150px', height: '150px' }}>
+                  <Bar data={chartData} options={options} />
+                </div>
+              );
+            })}
+          </div>
+        );
         break;
+      }
 
       default:
         return null;
@@ -1009,51 +1017,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         chartComponent = <Scatter data={chartData} options={options} />;
         break;
 
-      case "histogram":
+      case "histogram": {
         title = "Histogram - Time Distribution by Story Points";
-        chartData = createHistogramData();
-        options = {
-          responsive: true,
-          maintainAspectRatio: false,
-          aspectRatio: 2,
-          plugins: {
-            title: { display: true, text: title, font: { size: 18 } },
-            legend: {
-              display: true,
-              position: "top" as const,
-              labels: {
-                usePointStyle: true,
-                padding: 15,
-                font: { size: 12 },
-              },
-            },
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: "Number of Issues",
-                font: { size: 14 },
-              },
-            },
-            x: {
-              title: {
-                display: true,
-                text: "Hours Logged",
-                font: { size: 14 },
-              },
-            },
-          },
-          datasets: {
-            bar: {
-              categoryPercentage: 0.8, // Controls space between groups of bars
-              barPercentage: 0.9, // Controls space between individual bars
-            },
-          },
-        };
-        chartComponent = <Bar data={chartData} options={options} />;
+        const modalHistograms = createHistogramData();
+        if (modalHistograms.length === 0) {
+          return (
+            <div className="modal-empty-chart">
+              <p>No data available with story points or logged time</p>
+              <p className="data-hint">
+                Make sure your JIRA issues have story points and logged work time
+              </p>
+            </div>
+          );
+        }
+        chartComponent = (
+          <div className="modal-histogram-container">
+            {modalHistograms.map((histogram) => {
+              const chartData = {
+                labels: histogram.labels,
+                datasets: histogram.datasets,
+              };
+              const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  title: {
+                    display: true,
+                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues)`,
+                    font: { size: 16 }
+                  },
+                  legend: {
+                    display: false,
+                  },
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    title: { display: true, text: "Number of Issues", font: { size: 14 } },
+                  },
+                  x: {
+                    title: { display: true, text: "Hours Logged", font: { size: 14 } },
+                  },
+                },
+              };
+              return (
+                <div key={histogram.storyPoint} style={{ minHeight: '300px', height: '300px' }}>
+                  <Bar data={chartData} options={options} />
+                </div>
+              );
+            })}
+          </div>
+        );
         break;
+      }
 
       default:
         return null;
