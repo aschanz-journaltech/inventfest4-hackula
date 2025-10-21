@@ -44,17 +44,25 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
   const [showClientSecret, setShowClientSecret] = useState(false);
 
   useEffect(() => {
+    // Check if we're returning from OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const state = urlParams.get("state");
+    const error = urlParams.get("error");
+
+    // Early exit if no OAuth parameters
+    if (!code && !state && !error) {
+      return;
+    }
+
+    // Clean up URL immediately to prevent re-processing
+    window.history.replaceState({}, document.title, window.location.pathname);
+
     const handleOAuthCallback = async (code: string, state: string) => {
       setIsProcessingCallback(true);
       try {
         const user = await jiraApi.handleOAuthCallback(code, state);
         onLoginSuccess(user);
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
       } catch (error) {
         let errorMessage =
           error instanceof Error ? error.message : "OAuth callback failed";
@@ -69,34 +77,21 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
         }
 
         onError(errorMessage);
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
       } finally {
         setIsProcessingCallback(false);
       }
     };
 
-    // Check if we're returning from OAuth callback
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    const state = urlParams.get("state");
-    const error = urlParams.get("error");
-
     if (error) {
       onError(`OAuth error: ${error}`);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
 
     if (code && state) {
       handleOAuthCallback(code, state);
     }
-  }, [onLoginSuccess, onError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
