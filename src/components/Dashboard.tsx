@@ -371,9 +371,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         label: issue.key,
       }));
 
-    // Calculate linear regression for trend line
-    const calculateTrendLine = (data: Array<{ x: number; y: number }>) => {
-      if (data.length < 2) return [];
+      // Calculate linear regression for trend line and extend it beyond points
+      const calculateTrendLine = (data: Array<{ x: number; y: number }>) => {
+      if (data.length < 2) return { points: [], slope: 0, intercept: 0 };
 
       const n = data.length;
       const sumX = data.reduce((sum, point) => sum + point.x, 0);
@@ -381,27 +381,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       const sumXY = data.reduce((sum, point) => sum + point.x * point.y, 0);
       const sumXX = data.reduce((sum, point) => sum + point.x * point.x, 0);
 
-      // Linear regression formula: y = mx + b
+      // Linear regression formula: y = m x + b
       const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
       const intercept = (sumY - slope * sumX) / n;
 
-      // Find min and max x values to draw the line
-      const minX = Math.min(...data.map((p) => p.x));
-      const maxX = Math.max(...data.map((p) => p.x));
+      // Find min and max x values to draw the line and extend them by 10%
+      const xs = data.map((p) => p.x);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const range = maxX - minX || 1;
+      const pad = range * 0.1;
+      const extMin = minX - pad;
+      const extMax = maxX + pad;
 
-      return [
-        { x: minX, y: slope * minX + intercept },
-        { x: maxX, y: slope * maxX + intercept },
-      ];
+      return {
+        points: [
+          { x: extMin, y: Math.max(0, slope * extMin + intercept) },
+          { x: extMax, y: Math.max(0, slope * extMax + intercept) },
+        ],
+        slope,
+        intercept,
+      };
     };
 
-    const trendLineData = calculateTrendLine(scatterData).map(
-      (point, index) => ({
-        x: point.x,
-        y: point.y,
-        label: `Trend ${index + 1}`,
-      })
-    );
+    const trendCalc = calculateTrendLine(scatterData);
+    const trendLineData = trendCalc.points.map((point, index) => ({
+      x: point.x,
+      y: point.y,
+      label: `Trend ${index + 1}`,
+    }));
 
     const datasets = [
       {
@@ -420,16 +428,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       datasets.push({
         label: "Trend Line",
         data: trendLineData,
-        backgroundColor: "rgba(255, 99, 132, 0.2)",
+        // use transparent fill and a visible border for the line
+        backgroundColor: "rgba(255, 99, 132, 0.0)",
         borderColor: "rgba(255, 99, 132, 1)",
         pointRadius: 0,
-        pointHoverRadius: 0,
+        // allow hovering near endpoints to show tooltip
+        pointHoverRadius: 6,
+        // show the line between the two extended points
         showLine: true,
       });
     }
 
     return {
       datasets: datasets,
+      trend: {
+        slope: trendCalc.slope,
+        intercept: trendCalc.intercept,
+      },
     };
   };
 
@@ -530,12 +545,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         break;
 
       case "scatterplot":
-        chartData = createScatterplotData();
+        const scatterResult = createScatterplotData();
+        chartData = { datasets: scatterResult.datasets };
         options = {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
             title: { display: true, text: title },
+            tooltip: {
+              callbacks: {
+                label: (context: any) => {
+                  const dsIndex = context.datasetIndex;
+                  const dataIndex = context.dataIndex;
+                  const dataset = scatterResult.datasets[dsIndex];
+                  if (!dataset) return context.raw;
+                  const item = dataset.data[dataIndex];
+                  if (item && item.label) {
+                    return `${item.label}: (${item.x}, ${item.y})`;
+                  }
+                  // for trend line dataset show equation
+                  if (dataset.label && dataset.label.toLowerCase().includes("trend") && scatterResult.trend) {
+                    const m = scatterResult.trend.slope.toFixed(2);
+                    const b = scatterResult.trend.intercept.toFixed(2);
+                    return `y = ${m}x + ${b}`;
+                  }
+                  return `${context.raw.x}, ${context.raw.y}`;
+                },
+              },
+            },
           },
           scales: {
             x: {
@@ -547,6 +584,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               beginAtZero: true,
             },
           },
+          interaction: { mode: "nearest" as const, intersect: false },
         };
         chartComponent = <Scatter data={chartData} options={options} />;
         break;
@@ -592,9 +630,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
         <p className="chart-description">{description}</p>
         <div className="chart-container">{chartComponent}</div>
-        <div className="chart-stats">
-          <span>📊 {processedIssues.length} issues with data</span>
-        </div>
       </div>
     );
   };
@@ -668,13 +703,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       case "scatterplot":
         title = "Scatterplot - Story Points vs Logged Hours";
-        chartData = createScatterplotData();
+        const modalScatterResult = createScatterplotData();
+        chartData = { datasets: modalScatterResult.datasets };
         options = {
           responsive: true,
           maintainAspectRatio: false,
           aspectRatio: 2,
           plugins: {
             title: { display: true, text: title, font: { size: 18 } },
+            tooltip: {
+              callbacks: {
+                label: (context: any) => {
+                  const dsIndex = context.datasetIndex;
+                  const dataIndex = context.dataIndex;
+                  const dataset = modalScatterResult.datasets[dsIndex];
+                  if (!dataset) return context.raw;
+                  const item = dataset.data[dataIndex];
+                  if (item && item.label) {
+                    return `${item.label}: (${item.x}, ${item.y})`;
+                  }
+                  if (dataset.label && dataset.label.toLowerCase().includes("trend") && modalScatterResult.trend) {
+                    const m = modalScatterResult.trend.slope.toFixed(2);
+                    const b = modalScatterResult.trend.intercept.toFixed(2);
+                    return `y = ${m}x + ${b}`;
+                  }
+                  return `${context.raw.x}, ${context.raw.y}`;
+                },
+              },
+            },
           },
           scales: {
             x: {
@@ -690,6 +746,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               beginAtZero: true,
             },
           },
+          interaction: { mode: "nearest" as const, intersect: false },
         };
         chartComponent = <Scatter data={chartData} options={options} />;
         break;
@@ -733,9 +790,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     return (
       <div className="modal-chart-container">
         {chartComponent}
-        <div className="modal-chart-stats">
-          <span>📊 {processedIssues.length} issues with data</span>
-        </div>
       </div>
     );
   };
