@@ -372,34 +372,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       }));
 
     // Calculate linear regression for trend line
-    const calculateTrendLine = (data: Array<{x: number, y: number}>) => {
+    const calculateTrendLine = (data: Array<{ x: number; y: number }>) => {
       if (data.length < 2) return [];
-      
+
       const n = data.length;
       const sumX = data.reduce((sum, point) => sum + point.x, 0);
       const sumY = data.reduce((sum, point) => sum + point.y, 0);
       const sumXY = data.reduce((sum, point) => sum + point.x * point.y, 0);
       const sumXX = data.reduce((sum, point) => sum + point.x * point.x, 0);
-      
+
       // Linear regression formula: y = mx + b
       const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
       const intercept = (sumY - slope * sumX) / n;
-      
+
       // Find min and max x values to draw the line
-      const minX = Math.min(...data.map(p => p.x));
-      const maxX = Math.max(...data.map(p => p.x));
-      
+      const minX = Math.min(...data.map((p) => p.x));
+      const maxX = Math.max(...data.map((p) => p.x));
+
       return [
         { x: minX, y: slope * minX + intercept },
-        { x: maxX, y: slope * maxX + intercept }
+        { x: maxX, y: slope * maxX + intercept },
       ];
     };
 
-    const trendLineData = calculateTrendLine(scatterData).map((point, index) => ({
-      x: point.x,
-      y: point.y,
-      label: `Trend ${index + 1}`
-    }));
+    const trendLineData = calculateTrendLine(scatterData).map(
+      (point, index) => ({
+        x: point.x,
+        y: point.y,
+        label: `Trend ${index + 1}`,
+      })
+    );
 
     const datasets = [
       {
@@ -410,7 +412,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         pointRadius: 6,
         pointHoverRadius: 8,
         showLine: false,
-      }
+      },
     ];
 
     // Add trend line if we have data
@@ -422,12 +424,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         borderColor: "rgba(255, 99, 132, 1)",
         pointRadius: 0,
         pointHoverRadius: 0,
-        showLine: true
+        showLine: true,
       });
     }
 
     return {
-      datasets: datasets
+      datasets: datasets,
     };
   };
 
