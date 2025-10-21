@@ -449,11 +449,11 @@ class JiraApiService {
   }
 
   /**
-   * Get issues from a specific project
+   * Get issues from a specific project (filtered to only include issues with story points)
    */
   async getIssues(
     projectKey: string,
-    maxResults: number = 50
+    maxResults: number = 1000
   ): Promise<JiraSearchResponse> {
     if (!this.api) {
       throw new Error("Not authenticated. Please login first.");
@@ -462,11 +462,23 @@ class JiraApiService {
     try {
       const response = await this.api.get("/search/jql", {
         params: {
-          jql: `project = "${projectKey}"`,
+          jql: `project = "${projectKey}" AND "Story Points" IS NOT EMPTY AND (status = "Done" OR status = "Resolved") AND timespent > 0`,
           maxResults,
           fields: "*all",
         },
       });
+
+      // Check if we hit the limit and there are more issues
+      const data = response.data;
+      console.log(
+        `📊 Fetched ${data.issues.length} of ${data.total} total issues with story points for project ${projectKey}`
+      );
+
+      if (data.total > maxResults) {
+        console.warn(
+          `⚠️ Project has ${data.total} issues with story points but only fetched ${maxResults}. Consider using getAllIssues() for complete data.`
+        );
+      }
 
       // Debug logging to see what fields are available
       if (response.data.issues && response.data.issues.length > 0) {
@@ -529,6 +541,53 @@ class JiraApiService {
       return response.data;
     } catch (error) {
       console.error("Error fetching issues:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get ALL issues from a specific project that have story points (handles pagination automatically)
+   */
+  async getAllIssues(projectKey: string): Promise<JiraSearchResponse> {
+    if (!this.api) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      let startAt = 0;
+      const maxResults = 100; // Smaller chunks for better performance
+      let allIssues: JiraIssue[] = [];
+      let total = 0;
+
+      do {
+        const response = await this.api.get("/search/jql", {
+          params: {
+            jql: `project = "${projectKey}" AND "Story Points" IS NOT EMPTY AND (status = "Done" OR status = "Resolved") AND timespent > 0`,
+            maxResults,
+            startAt,
+            fields: "*all",
+          },
+        });
+
+        const data = response.data;
+        allIssues = allIssues.concat(data.issues);
+        total = data.total;
+        startAt += maxResults;
+
+        console.log(
+          `📊 Fetched ${allIssues.length} of ${total} total issues with story points for project ${projectKey}`
+        );
+      } while (allIssues.length < total);
+
+      return {
+        expand: "",
+        startAt: 0,
+        maxResults: allIssues.length,
+        total: total,
+        issues: allIssues,
+      };
+    } catch (error) {
+      console.error("Error fetching all issues:", error);
       throw error;
     }
   }

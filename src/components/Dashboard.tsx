@@ -77,15 +77,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       // Filter to show custom fields and sort by name
       const customFields = fields
-        .filter(f => f.custom)
+        .filter((f) => f.custom)
         .sort((a, b) => a.name.localeCompare(b.name));
 
       console.log("🎯 Custom Fields:", customFields);
 
       // Look for story points specifically
-      const storyPointFields = fields.filter(f =>
-        f.name.toLowerCase().includes('story') ||
-        f.name.toLowerCase().includes('point')
+      const storyPointFields = fields.filter(
+        (f) =>
+          f.name.toLowerCase().includes("story") ||
+          f.name.toLowerCase().includes("point")
       );
 
       console.log("📊 Story Point Related Fields:", storyPointFields);
@@ -121,7 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     try {
       setLoading(true);
       setError("");
-      const issuesData = await jiraApi.getIssues(projectKey);
+      const issuesData = await jiraApi.getAllIssues(projectKey);
       setIssues(issuesData.issues);
     } catch (err) {
       setError("Failed to load issues");
@@ -1377,7 +1378,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       {/* Field Schema Modal */}
       {showFieldSchema && (
-        <div className="modal-overlay" onClick={() => setShowFieldSchema(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowFieldSchema(false)}
+        >
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Jira Field Schema</h3>
@@ -1388,50 +1392,155 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 ✕
               </button>
             </div>
-            <div className="modal-chart" style={{ overflow: 'auto', maxHeight: '70vh' }}>
-              <div style={{ padding: '20px' }}>
+            <div
+              className="modal-chart"
+              style={{ overflow: "auto", maxHeight: "70vh" }}
+            >
+              <div style={{ padding: "20px" }}>
                 <h4>Story Point Related Fields:</h4>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    marginBottom: "20px",
+                  }}
+                >
                   <thead>
-                    <tr style={{ backgroundColor: '#f0f0f0' }}>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field ID</th>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field Name</th>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Type</th>
+                    <tr style={{ backgroundColor: "#f0f0f0" }}>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Field ID
+                      </th>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Field Name
+                      </th>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Type
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {fieldSchema
-                      .filter(f => f.name.toLowerCase().includes('story') || f.name.toLowerCase().includes('point'))
-                      .map(field => (
+                      .filter(
+                        (f) =>
+                          f.name.toLowerCase().includes("story") ||
+                          f.name.toLowerCase().includes("point")
+                      )
+                      .map((field) => (
                         <tr key={field.id}>
-                          <td style={{ padding: '8px', border: '1px solid #ddd', fontFamily: 'monospace' }}>{field.id}</td>
-                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.name}</td>
-                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.schema?.type || 'N/A'}</td>
+                          <td
+                            style={{
+                              padding: "8px",
+                              border: "1px solid #ddd",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {field.id}
+                          </td>
+                          <td
+                            style={{ padding: "8px", border: "1px solid #ddd" }}
+                          >
+                            {field.name}
+                          </td>
+                          <td
+                            style={{ padding: "8px", border: "1px solid #ddd" }}
+                          >
+                            {field.schema?.type || "N/A"}
+                          </td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
 
                 <h4>All Custom Fields:</h4>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f0f0f0' }}>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field ID</th>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field Name</th>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Type</th>
-                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Custom</th>
+                    <tr style={{ backgroundColor: "#f0f0f0" }}>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Field ID
+                      </th>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Field Name
+                      </th>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Type
+                      </th>
+                      <th
+                        style={{
+                          padding: "8px",
+                          textAlign: "left",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        Custom
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {fieldSchema
-                      .filter(f => f.custom)
+                      .filter((f) => f.custom)
                       .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(field => (
+                      .map((field) => (
                         <tr key={field.id}>
-                          <td style={{ padding: '8px', border: '1px solid #ddd', fontFamily: 'monospace' }}>{field.id}</td>
-                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.name}</td>
-                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.schema?.type || 'N/A'}</td>
-                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.custom ? 'Yes' : 'No'}</td>
+                          <td
+                            style={{
+                              padding: "8px",
+                              border: "1px solid #ddd",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {field.id}
+                          </td>
+                          <td
+                            style={{ padding: "8px", border: "1px solid #ddd" }}
+                          >
+                            {field.name}
+                          </td>
+                          <td
+                            style={{ padding: "8px", border: "1px solid #ddd" }}
+                          >
+                            {field.schema?.type || "N/A"}
+                          </td>
+                          <td
+                            style={{ padding: "8px", border: "1px solid #ddd" }}
+                          >
+                            {field.custom ? "Yes" : "No"}
+                          </td>
                         </tr>
                       ))}
                   </tbody>
