@@ -8,6 +8,11 @@ import {
   XAxis,
   YAxis,
   Legend,
+    ResponsiveContainer,
+    ScatterChart,
+    Scatter,
+    ComposedChart,
+    Bar
 } from "recharts";
 
 const data = [
@@ -48,6 +53,21 @@ const data = [
   },
 ];
 
+const n = data.length;
+const sumX = data.reduce((s, d) => s + d.storyPoint, 0);
+const sumY = data.reduce((s, d) => s + d.hour, 0);
+const sumXY = data.reduce((s, d) => s + d.storyPoint * d.hour, 0);
+const sumX2 = data.reduce((s, d) => s + d.storyPoint ** 2, 0);
+const a = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX ** 2);
+const b = (sumY - a * sumX) / n;
+
+// Create line points
+const trendLine = [
+  { storyPoint: Math.min(...data.map(d => d.storyPoint)), hour: a * Math.min(...data.map(d => d.storyPoint)) + b },
+  { storyPoint: Math.max(...data.map(d => d.storyPoint)), hour: a * Math.max(...data.map(d => d.storyPoint)) + b },
+];
+
+
 
 export const Shayboard: React.FC = () => {
   return (
@@ -87,6 +107,40 @@ export const Shayboard: React.FC = () => {
           <Line type="monotone" dataKey="hour" stroke="#8884d8" activeDot={{ r: 8 }} />
           <Line type="monotone" dataKey="storyPoint" stroke="#82ca9d" />
         </LineChart>
+         <ResponsiveContainer width="100%" height={400}>
+      <ComposedChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis yAxisId="left" orientation="left" label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
+        <YAxis yAxisId="right" orientation="right" label={{ value: 'Story Points', angle: 90, position: 'insideRight' }} />
+        <Tooltip />
+        <Legend />
+        <Bar yAxisId="left" dataKey="hour" fill="#82ca9d" name="Hours Logged" />
+        <Line yAxisId="right" type="monotone" dataKey="storyPoint" stroke="#8884d8" name="Story Points" />
+      </ComposedChart>
+    </ResponsiveContainer>
+     <ResponsiveContainer width="100%" height={400}>
+      <ScatterChart>
+        <CartesianGrid />
+        <XAxis type="number" dataKey="storyPoint" name="Story Points" />
+        <YAxis type="number" dataKey="hour" name="Hours Logged" />
+        <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+        <Scatter data={data} fill="#8884d8" />
+      </ScatterChart>
+    </ResponsiveContainer>
+     <ResponsiveContainer width="100%" height={400}>
+      <ScatterChart>
+        <CartesianGrid />
+        <XAxis type="number" dataKey="storyPoint" name="Story Points" />
+        <YAxis type="number" dataKey="hour" name="Hours Logged" />
+        <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+
+        <Scatter data={data} fill="#8884d8" />
+
+        {/* Trendline */}
+        <Line type="linear" dataKey="hour" data={trendLine} stroke="red" dot={false} />
+      </ScatterChart>
+    </ResponsiveContainer>
       </div>
     </div>
   );
