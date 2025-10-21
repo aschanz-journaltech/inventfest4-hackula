@@ -45,6 +45,7 @@ export interface JiraIssue {
       name: string;
     };
     // Story points - try multiple common field IDs
+    customfield_10021?: number; // Story Points (your Jira instance)
     customfield_10016?: number; // Story Points (common field ID)
     customfield_10004?: number; // Alternative story points field
     customfield_10002?: number; // Alternative story points field
@@ -497,6 +498,7 @@ class JiraApiService {
           aggregatetimespent: firstIssue.fields.aggregatetimespent,
         });
         console.log("🎯 Checking common story point field IDs:", {
+          customfield_10021: firstIssue.fields.customfield_10021,
           customfield_10016: firstIssue.fields.customfield_10016,
           customfield_10004: firstIssue.fields.customfield_10004,
           customfield_10002: firstIssue.fields.customfield_10002,

@@ -217,8 +217,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     );
 
     const processed = filteredIssues.map((issue) => {
-      // Try multiple common story points field IDs and look for numeric values
+      // Use customfield_10021 for story points (your Jira instance's story points field)
       let storyPoints =
+        issue.fields.customfield_10021 ||
         issue.fields.customfield_10016 ||
         issue.fields.customfield_10004 ||
         issue.fields.customfield_10002 ||
@@ -231,6 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // Debug: Log story points detection for first few issues
       if (filteredIssues.indexOf(issue) < 3) {
         console.log(`🔍 Story Points Debug for ${issue.key}:`, {
+          customfield_10021: issue.fields.customfield_10021,
           customfield_10016: issue.fields.customfield_10016,
           customfield_10004: issue.fields.customfield_10004,
           customfield_10002: issue.fields.customfield_10002,
