@@ -4,6 +4,9 @@ import { Dashboard } from "./components/Dashboard";
 import { jiraApi, type JiraUser } from "./services/jiraApi";
 import "./App.css";
 
+// Import debug utilities (available in browser console as window.oauthDebug)
+import "./utils/oauthDebug";
+
 function App() {
   const [user, setUser] = useState<JiraUser | null>(null);
   const [error, setError] = useState<string>("");

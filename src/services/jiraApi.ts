@@ -72,6 +72,8 @@ export interface JiraTokenResponse {
 export interface JiraOAuthState {
   baseUrl: string;
   codeVerifier: string;
+  clientId: string;
+  redirectUri: string;
 }
 
 class JiraApiService {
@@ -127,6 +129,8 @@ class JiraApiService {
     const state = JSON.stringify({
       baseUrl: this.baseUrl,
       codeVerifier,
+      clientId: config.clientId,
+      redirectUri: config.redirectUri,
     } as JiraOAuthState);
 
     sessionStorage.setItem("jira_oauth_state", state);
@@ -168,6 +172,7 @@ class JiraApiService {
       }
 
       this.baseUrl = oauthState.baseUrl;
+      this.clientId = oauthState.clientId;
 
       // Exchange authorization code for access token
       const tokenResponse = await this.exchangeCodeForToken(
@@ -212,18 +217,33 @@ class JiraApiService {
     code: string,
     codeVerifier: string
   ): Promise<JiraTokenResponse> {
-    const redirectUri = `${window.location.origin}${window.location.pathname}`;
-
     if (!this.clientId) {
       throw new Error("Client ID not set");
     }
 
+    // Get the redirect URI from stored state
+    const storedState = sessionStorage.getItem("jira_oauth_state");
+    if (!storedState) {
+      throw new Error("OAuth state not found during token exchange");
+    }
+
+    const oauthState: JiraOAuthState = JSON.parse(storedState);
+    const redirectUri = oauthState.redirectUri;
+
+    console.log("🔄 Token exchange attempt:", {
+      clientId: this.clientId,
+      redirectUri: redirectUri,
+      hasCode: !!code,
+      hasCodeVerifier: !!codeVerifier,
+      currentUrl: window.location.href,
+    });
+
     const response = await fetch("https://auth.atlassian.com/oauth/token", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         grant_type: "authorization_code",
         client_id: this.clientId,
         code,
@@ -234,6 +254,26 @@ class JiraApiService {
 
     if (!response.ok) {
       const errorData = await response.text();
+      console.error("❌ Token exchange failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        requestDetails: {
+          clientId: this.clientId,
+          redirectUri: redirectUri,
+          grantType: "authorization_code",
+          hasCode: !!code,
+          hasCodeVerifier: !!codeVerifier,
+          codeLength: code?.length,
+          codeVerifierLength: codeVerifier?.length,
+        },
+        troubleshooting: {
+          checkClientId: "Verify this matches your Atlassian OAuth app exactly",
+          checkRedirectUri:
+            "This must match the callback URL in your OAuth app settings",
+          checkOAuthApp: "Ensure OAuth app is enabled and has correct scopes",
+        },
+      });
       throw new Error(
         `Token exchange failed: ${response.status} - ${errorData}`
       );
@@ -370,7 +410,35 @@ class JiraApiService {
    */
   logout(): void {
     sessionStorage.removeItem("jira_oauth_state");
+    // Optionally clear saved config on logout
+    // localStorage.removeItem("jira_oauth_config");
     this.cleanup();
+  }
+
+  /**
+   * Clear saved OAuth configuration from localStorage
+   */
+  clearSavedConfig(): void {
+    localStorage.removeItem("jira_oauth_config");
+  }
+
+  /**
+   * Get diagnostic information for troubleshooting OAuth issues
+   */
+  getDiagnosticInfo(): {
+    currentRedirectUri: string;
+    savedConfig: { baseUrl: string; clientId: string } | null;
+    hasStoredState: boolean;
+  } {
+    const currentRedirectUri = `${window.location.origin}${window.location.pathname}`;
+    const savedConfig = localStorage.getItem("jira_oauth_config");
+    const hasStoredState = !!sessionStorage.getItem("jira_oauth_state");
+
+    return {
+      currentRedirectUri,
+      savedConfig: savedConfig ? JSON.parse(savedConfig) : null,
+      hasStoredState,
+    };
   }
 }
 

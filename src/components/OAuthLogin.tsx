@@ -15,10 +15,27 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
   onLoginSuccess,
   onError,
 }) => {
-  const [config, setConfig] = useState<JiraOAuthConfig>({
-    baseUrl: "",
-    clientId: "",
-    redirectUri: `${window.location.origin}${window.location.pathname}`,
+  const [config, setConfig] = useState<JiraOAuthConfig>(() => {
+    // Load saved configuration from localStorage
+    const savedConfig = localStorage.getItem("jira_oauth_config");
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig);
+        return {
+          baseUrl: parsed.baseUrl || "",
+          clientId: parsed.clientId || "",
+          redirectUri: `${window.location.origin}${window.location.pathname}`,
+        };
+      } catch (error) {
+        console.error("Error loading saved OAuth config:", error);
+      }
+    }
+
+    return {
+      baseUrl: "",
+      clientId: "",
+      redirectUri: `${window.location.origin}${window.location.pathname}`,
+    };
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingCallback, setIsProcessingCallback] = useState(false);
@@ -36,8 +53,18 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
           window.location.pathname
         );
       } catch (error) {
-        const errorMessage =
+        let errorMessage =
           error instanceof Error ? error.message : "OAuth callback failed";
+
+        // Provide helpful error messages for common OAuth issues
+        if (
+          errorMessage.includes("401") &&
+          errorMessage.includes("access_denied")
+        ) {
+          errorMessage +=
+            "\n\nThis usually means:\n• The callback URL in your OAuth app doesn't match exactly\n• The Client ID is incorrect\n• The OAuth app is not configured properly\n\nPlease check your Atlassian Developer Console settings.";
+        }
+
         onError(errorMessage);
         // Clean up URL
         window.history.replaceState(
@@ -91,6 +118,15 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
       if (!urlPattern.test(config.baseUrl)) {
         throw new Error("Base URL must start with http:// or https://");
       }
+
+      // Save configuration to localStorage for future use
+      localStorage.setItem(
+        "jira_oauth_config",
+        JSON.stringify({
+          baseUrl: config.baseUrl,
+          clientId: config.clientId,
+        })
+      );
 
       // Get authorization URL and redirect
       const { url } = await jiraApi.getAuthorizationUrl(config);
