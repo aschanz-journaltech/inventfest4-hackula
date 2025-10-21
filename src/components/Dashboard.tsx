@@ -218,50 +218,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     const processed = filteredIssues.map((issue) => {
       // Use customfield_10021 for story points (your Jira instance's story points field)
-      let storyPoints =
-        issue.fields.customfield_10021 ||
-        issue.fields.customfield_10016 ||
-        issue.fields.customfield_10004 ||
-        issue.fields.customfield_10002 ||
-        issue.fields.customfield_10003 ||
-        issue.fields.customfield_10005 ||
-        0;
-
-      console.log(issue);
-
-      // Debug: Log story points detection for first few issues
-      if (filteredIssues.indexOf(issue) < 3) {
-        console.log(`🔍 Story Points Debug for ${issue.key}:`, {
-          customfield_10021: issue.fields.customfield_10021,
-          customfield_10016: issue.fields.customfield_10016,
-          customfield_10004: issue.fields.customfield_10004,
-          customfield_10002: issue.fields.customfield_10002,
-          customfield_10003: issue.fields.customfield_10003,
-          customfield_10005: issue.fields.customfield_10005,
-          detected: storyPoints,
-        });
-      }
-
-      // If no story points found in common fields, look for any numeric custom field
-      if (storyPoints === 0) {
-        const numericFields = Object.keys(issue.fields)
-          .filter((key) => key.startsWith("customfield_"))
-          .map((key) => ({ field: key, value: issue.fields[key] }))
-          .filter(
-            (item) =>
-              typeof item.value === "number" &&
-              item.value > 0 &&
-              item.value <= 100
-          );
-
-        if (numericFields.length > 0) {
-          console.log(
-            `🎯 Found potential story points for ${issue.key}:`,
-            numericFields[0]
-          );
-          storyPoints = numericFields[0].value as number;
-        }
-      }
+      const storyPoints = issue.fields.customfield_10021 || 0;
 
       // Try multiple sources for time spent (we know this is working!)
       let timeSpentHours = 0;

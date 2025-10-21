@@ -44,13 +44,8 @@ export interface JiraIssue {
     priority: {
       name: string;
     };
-    // Story points - try multiple common field IDs
+    // Story points field
     customfield_10021?: number; // Story Points (your Jira instance)
-    customfield_10016?: number; // Story Points (common field ID)
-    customfield_10004?: number; // Alternative story points field
-    customfield_10002?: number; // Alternative story points field
-    customfield_10003?: number; // Alternative story points field
-    customfield_10005?: number; // Alternative story points field
     // Time tracking fields
     timeoriginalestimate?: number; // Original time estimate in seconds
     timeestimate?: number; // Remaining time estimate in seconds
@@ -497,14 +492,9 @@ class JiraApiService {
             firstIssue.fields.aggregatetimeoriginalestimate,
           aggregatetimespent: firstIssue.fields.aggregatetimespent,
         });
-        console.log("🎯 Checking common story point field IDs:", {
-          customfield_10021: firstIssue.fields.customfield_10021,
-          customfield_10016: firstIssue.fields.customfield_10016,
-          customfield_10004: firstIssue.fields.customfield_10004,
-          customfield_10002: firstIssue.fields.customfield_10002,
-          customfield_10003: firstIssue.fields.customfield_10003,
-          customfield_10005: firstIssue.fields.customfield_10005,
-        });
+        console.log("🎯 Story Points field (customfield_10021):",
+          firstIssue.fields.customfield_10021
+        );
 
         // Check for actual numeric values in custom fields that could be story points
         const numericCustomFields = Object.keys(firstIssue.fields)
