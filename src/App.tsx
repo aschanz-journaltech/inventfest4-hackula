@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { OAuthLogin } from "./components/OAuthLogin";
 import { Dashboard } from "./components/Dashboard";
+import Shayboard from "./components/Shayboard.tsx";
 import { jiraApi, type JiraUser } from "./services/jiraApi";
 import "./App.css";
 
@@ -27,24 +28,32 @@ function App() {
     setError("");
   };
 
+  const path = window.location.pathname;
+
   return (
     <div className="App">
-      {error && (
-        <div className="error-notification">
-          <span>{error}</span>
-          <button onClick={() => setError("")} className="error-close">
-            ×
-          </button>
-        </div>
-      )}
-
-      {!user ? (
-        <OAuthLogin
-          onLoginSuccess={handleLoginSuccess}
-          onError={handleLoginError}
-        />
+      {path === "/shayboard" ? (
+        <Shayboard />
       ) : (
-        <Dashboard user={user} onLogout={handleLogout} />
+        <>
+          {error && (
+            <div className="error-notification">
+              <span>{error}</span>
+              <button onClick={() => setError("")} className="error-close">
+                ×
+              </button>
+            </div>
+          )}
+
+          {!user ? (
+            <OAuthLogin
+              onLoginSuccess={handleLoginSuccess}
+              onError={handleLoginError}
+            />
+          ) : (
+            <Dashboard user={user} onLogout={handleLogout} />
+          )}
+        </>
       )}
     </div>
   );

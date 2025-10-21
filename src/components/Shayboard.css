@@ -1,0 +1,16 @@
+.shayboard {
+  padding: 24px;
+}
+.shayboard-header h1 {
+  margin: 0 0 8px 0;
+}
+.muted {
+  color: #6b7280;
+}
+.shayboard-content {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  border-radius: 8px;
+}
