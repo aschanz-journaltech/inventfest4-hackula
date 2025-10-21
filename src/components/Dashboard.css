@@ -7,14 +7,23 @@
   background: white;
   padding: 1rem 2rem;
   border-bottom: 1px solid #dfe1e6;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
   align-items: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-self: start;
 }
 
 .app-title {
-  flex: 1;
+  text-align: center;
+  justify-self: center;
 }
 
 .app-title h1 {
@@ -24,6 +33,7 @@
   font-weight: 700;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
 }
 
@@ -34,10 +44,18 @@
   font-style: italic;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-self: end;
+}
+
 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  justify-self: start;
 }
 
 .user-avatar {
@@ -58,9 +76,7 @@
   font-size: 0.875rem;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
+.jira-instance {
   gap: 1rem;
 }
 
