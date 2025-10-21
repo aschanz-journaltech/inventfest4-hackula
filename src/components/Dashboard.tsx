@@ -18,6 +18,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     loadProjects();
@@ -27,7 +28,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     try {
       setLoading(true);
       const projectsData = await jiraApi.getProjects();
-      setProjects(projectsData);
+      // Sort projects alphabetically by name
+      const sortedProjects = projectsData.sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      setProjects(sortedProjects);
     } catch (err) {
       setError("Failed to load projects");
       console.error("Error loading projects:", err);
@@ -59,6 +64,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       setIssues([]);
     }
   };
+
+  // Filter projects based on search query
+  const filteredProjects = projects.filter(
+    (project) =>
+      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.key.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -108,7 +120,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
       <main className="dashboard-content">
         <div className="project-selector">
+          <label htmlFor="project-search">Search Projects:</label>
+          <input
+            id="project-search"
+            type="text"
+            placeholder="Search by project name or key..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="project-search-input"
+          />
+
           <label htmlFor="project-select">Select a Project:</label>
+          {searchQuery && (
+            <p className="filter-info">
+              Showing {filteredProjects.length} of {projects.length} projects
+            </p>
+          )}
           <select
             id="project-select"
             value={selectedProject}
@@ -116,7 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             disabled={loading}
           >
             <option value="">-- Choose a project --</option>
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <option key={project.id} value={project.key}>
                 {project.name} ({project.key})
               </option>

@@ -157,11 +157,19 @@ class JiraApiService {
       }
 
       // Find the resource that matches our base URL or use the first one
-      const resource = resources.find(r =>
-        this.baseUrl && r.url.includes(this.baseUrl.replace(/^https?:\/\//, ''))
-      ) || resources[0];
+      const resource =
+        resources.find(
+          (r) =>
+            this.baseUrl &&
+            r.url.includes(this.baseUrl.replace(/^https?:\/\//, ""))
+        ) || resources[0];
 
-      console.log("📍 Using Jira site:", resource.name, "- Cloud ID:", resource.id);
+      console.log(
+        "📍 Using Jira site:",
+        resource.name,
+        "- Cloud ID:",
+        resource.id
+      );
 
       // Create axios instance with Bearer token
       // Use proxy in development to avoid CORS issues
@@ -345,7 +353,7 @@ class JiraApiService {
     }
 
     try {
-      const response = await this.api.get("/search", {
+      const response = await this.api.get("/search/jql", {
         params: {
           jql: `project = "${projectKey}"`,
           maxResults,

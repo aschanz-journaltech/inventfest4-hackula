@@ -88,6 +88,34 @@
   color: #172b4d;
 }
 
+.project-search-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #dfe1e6;
+  border-radius: 4px;
+  font-size: 1rem;
+  background-color: white;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.project-search-input:focus {
+  outline: none;
+  border-color: #0052cc;
+  box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
+}
+
+.project-search-input::placeholder {
+  color: #6b778c;
+}
+
+.filter-info {
+  font-size: 0.875rem;
+  color: #6b778c;
+  margin: 0.25rem 0 0.5rem 0;
+  font-style: italic;
+}
+
 .project-selector select {
   width: 100%;
   padding: 0.75rem;
