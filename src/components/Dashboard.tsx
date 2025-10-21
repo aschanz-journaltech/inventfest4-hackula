@@ -36,6 +36,13 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+interface JiraField {
+  id: string;
+  name: string;
+  custom: boolean;
+  schema?: { type: string; custom?: string };
+}
+
 export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [projects, setProjects] = useState<JiraProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("");
@@ -55,10 +62,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     histogram: true,
   });
   const [modalGraph, setModalGraph] = useState<string | null>(null);
+  const [showFieldSchema, setShowFieldSchema] = useState(false);
+  const [fieldSchema, setFieldSchema] = useState<JiraField[]>([]);
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  const loadFieldSchema = async () => {
+    try {
+      setLoading(true);
+      const fields = await jiraApi.getAllFields();
+      console.log("📋 All Jira Fields:", fields);
+
+      // Filter to show custom fields and sort by name
+      const customFields = fields
+        .filter(f => f.custom)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log("🎯 Custom Fields:", customFields);
+
+      // Look for story points specifically
+      const storyPointFields = fields.filter(f =>
+        f.name.toLowerCase().includes('story') ||
+        f.name.toLowerCase().includes('point')
+      );
+
+      console.log("📊 Story Point Related Fields:", storyPointFields);
+
+      setFieldSchema(fields);
+      setShowFieldSchema(true);
+    } catch (err) {
+      console.error("Error loading field schema:", err);
+      setError("Failed to load field schema");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadProjects = async () => {
     try {
@@ -186,6 +226,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         issue.fields.customfield_10005 ||
         0;
 
+      console.log(issue);
+
       // Debug: Log story points detection for first few issues
       if (filteredIssues.indexOf(issue) < 3) {
         console.log(`🔍 Story Points Debug for ${issue.key}:`, {
@@ -194,7 +236,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           customfield_10002: issue.fields.customfield_10002,
           customfield_10003: issue.fields.customfield_10003,
           customfield_10005: issue.fields.customfield_10005,
-          detected: storyPoints
+          detected: storyPoints,
         });
       }
 
@@ -279,14 +321,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     const processedIssues = processIssuesForCharts(issues);
     const storyPointGroups: { [key: number]: number[] } = {};
 
-    console.log("🔍 Boxplot debug - Total processed issues:", processedIssues.length);
-    
+    console.log(
+      "🔍 Boxplot debug - Total processed issues:",
+      processedIssues.length
+    );
+
     // Debug: Show sample of processed issues
-    console.log("📊 Sample processed issues:", processedIssues.slice(0, 5).map(issue => ({
-      key: issue.key,
-      storyPoints: issue.storyPoints,
-      timeSpentHours: issue.timeSpentHours
-    })));
+    console.log(
+      "📊 Sample processed issues:",
+      processedIssues.slice(0, 5).map((issue) => ({
+        key: issue.key,
+        storyPoints: issue.storyPoints,
+        timeSpentHours: issue.timeSpentHours,
+      }))
+    );
 
     processedIssues.forEach((issue) => {
       if (issue.storyPoints > 0 && issue.timeSpentHours > 0) {
@@ -297,11 +345,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       }
     });
 
-    console.log("📈 Story point groups found:", Object.keys(storyPointGroups).map(sp => ({
-      storyPoints: sp,
-      count: storyPointGroups[Number(sp)].length,
-      hours: storyPointGroups[Number(sp)]
-    })));
+    console.log(
+      "📈 Story point groups found:",
+      Object.keys(storyPointGroups).map((sp) => ({
+        storyPoints: sp,
+        count: storyPointGroups[Number(sp)].length,
+        hours: storyPointGroups[Number(sp)],
+      }))
+    );
 
     const labels = Object.keys(storyPointGroups).sort(
       (a, b) => Number(a) - Number(b)
@@ -402,8 +453,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         label: issue.key,
       }));
 
-      // Calculate linear regression for trend line and extend it beyond points
-      const calculateTrendLine = (data: Array<{ x: number; y: number }>) => {
+    // Calculate linear regression for trend line and extend it beyond points
+    const calculateTrendLine = (data: Array<{ x: number; y: number }>) => {
       if (data.length < 2) return { points: [], slope: 0, intercept: 0 };
 
       const n = data.length;
@@ -481,7 +532,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const createHistogramData = () => {
     const processedIssues = processIssuesForCharts(issues);
-    
+
     // Filter issues that have both story points and logged time
     const issuesWithBothFields = processedIssues.filter(
       (issue) => issue.timeSpentHours > 0 && issue.storyPoints > 0
@@ -496,23 +547,60 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     ];
 
     // Get unique story point values from the data
-    const uniqueStoryPoints = [...new Set(issuesWithBothFields.map(issue => issue.storyPoints))]
-      .sort((a, b) => a - b);
+    const uniqueStoryPoints = [
+      ...new Set(issuesWithBothFields.map((issue) => issue.storyPoints)),
+    ].sort((a, b) => a - b);
 
     // Define colors for different story point values
     const colorPalette = [
-      { color: "rgba(255, 99, 132, 0.6)", borderColor: "rgba(255, 99, 132, 1)" }, // Red
-      { color: "rgba(54, 162, 235, 0.6)", borderColor: "rgba(54, 162, 235, 1)" }, // Blue
-      { color: "rgba(255, 206, 86, 0.6)", borderColor: "rgba(255, 206, 86, 1)" }, // Yellow
-      { color: "rgba(75, 192, 192, 0.6)", borderColor: "rgba(75, 192, 192, 1)" }, // Teal
-      { color: "rgba(153, 102, 255, 0.6)", borderColor: "rgba(153, 102, 255, 1)" }, // Purple
-      { color: "rgba(255, 159, 64, 0.6)", borderColor: "rgba(255, 159, 64, 1)" }, // Orange
-      { color: "rgba(199, 199, 199, 0.6)", borderColor: "rgba(199, 199, 199, 1)" }, // Light Gray
-      { color: "rgba(83, 102, 255, 0.6)", borderColor: "rgba(83, 102, 255, 1)" }, // Indigo
-      { color: "rgba(255, 99, 255, 0.6)", borderColor: "rgba(255, 99, 255, 1)" }, // Magenta
-      { color: "rgba(99, 255, 132, 0.6)", borderColor: "rgba(99, 255, 132, 1)" }, // Light Green
-      { color: "rgba(255, 159, 132, 0.6)", borderColor: "rgba(255, 159, 132, 1)" }, // Peach
-      { color: "rgba(132, 99, 255, 0.6)", borderColor: "rgba(132, 99, 255, 1)" }, // Lavender
+      {
+        color: "rgba(255, 99, 132, 0.6)",
+        borderColor: "rgba(255, 99, 132, 1)",
+      }, // Red
+      {
+        color: "rgba(54, 162, 235, 0.6)",
+        borderColor: "rgba(54, 162, 235, 1)",
+      }, // Blue
+      {
+        color: "rgba(255, 206, 86, 0.6)",
+        borderColor: "rgba(255, 206, 86, 1)",
+      }, // Yellow
+      {
+        color: "rgba(75, 192, 192, 0.6)",
+        borderColor: "rgba(75, 192, 192, 1)",
+      }, // Teal
+      {
+        color: "rgba(153, 102, 255, 0.6)",
+        borderColor: "rgba(153, 102, 255, 1)",
+      }, // Purple
+      {
+        color: "rgba(255, 159, 64, 0.6)",
+        borderColor: "rgba(255, 159, 64, 1)",
+      }, // Orange
+      {
+        color: "rgba(199, 199, 199, 0.6)",
+        borderColor: "rgba(199, 199, 199, 1)",
+      }, // Light Gray
+      {
+        color: "rgba(83, 102, 255, 0.6)",
+        borderColor: "rgba(83, 102, 255, 1)",
+      }, // Indigo
+      {
+        color: "rgba(255, 99, 255, 0.6)",
+        borderColor: "rgba(255, 99, 255, 1)",
+      }, // Magenta
+      {
+        color: "rgba(99, 255, 132, 0.6)",
+        borderColor: "rgba(99, 255, 132, 1)",
+      }, // Light Green
+      {
+        color: "rgba(255, 159, 132, 0.6)",
+        borderColor: "rgba(255, 159, 132, 1)",
+      }, // Peach
+      {
+        color: "rgba(132, 99, 255, 0.6)",
+        borderColor: "rgba(132, 99, 255, 1)",
+      }, // Lavender
     ];
 
     // Create datasets for each individual story point value
@@ -521,10 +609,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         (issue) => issue.storyPoints === storyPoint
       );
 
-      const bucketCounts = buckets.map((bucket) =>
-        issuesWithThisSP.filter(
-          (issue) => issue.timeSpentHours >= bucket.min && issue.timeSpentHours < bucket.max
-        ).length
+      const bucketCounts = buckets.map(
+        (bucket) =>
+          issuesWithThisSP.filter(
+            (issue) =>
+              issue.timeSpentHours >= bucket.min &&
+              issue.timeSpentHours < bucket.max
+          ).length
       );
 
       // Use modulo to cycle through colors if we have more story points than colors
@@ -546,10 +637,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     );
 
     if (issuesWithoutSP.length > 0) {
-      const bucketCountsNoSP = buckets.map((bucket) =>
-        issuesWithoutSP.filter(
-          (issue) => issue.timeSpentHours >= bucket.min && issue.timeSpentHours < bucket.max
-        ).length
+      const bucketCountsNoSP = buckets.map(
+        (bucket) =>
+          issuesWithoutSP.filter(
+            (issue) =>
+              issue.timeSpentHours >= bucket.min &&
+              issue.timeSpentHours < bucket.max
+          ).length
       );
 
       datasets.push({
@@ -563,7 +657,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     return {
       labels: buckets.map((b) => b.label),
-      datasets: datasets.filter(dataset => dataset.data.some(count => count > 0)), // Only show datasets with data
+      datasets: datasets.filter((dataset) =>
+        dataset.data.some((count) => count > 0)
+      ), // Only show datasets with data
     };
   };
 
@@ -606,8 +702,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               labels: {
                 usePointStyle: true,
                 padding: 20,
-                font: { size: 11 }
-              }
+                font: { size: 11 },
+              },
             },
             tooltip: {
               mode: "index" as const,
@@ -627,37 +723,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
                       `• Q3 (75th percentile): ${stats.q3.toFixed(1)}h`,
                       `• Maximum: ${stats.upperWhisker.toFixed(1)}h`,
-                      `• Outliers: ${stats.outliers.length} issues`
+                      `• Outliers: ${stats.outliers.length} issues`,
                     ];
                   }
                   return [];
-                }
-              }
+                },
+              },
             },
           },
           scales: {
             y: {
               beginAtZero: true,
-              title: { 
-                display: true, 
+              title: {
+                display: true,
                 text: "Hours Logged",
-                font: { size: 14 }
+                font: { size: 14 },
               },
               stacked: true,
               grid: {
-                color: "rgba(0,0,0,0.1)"
-              }
+                color: "rgba(0,0,0,0.1)",
+              },
             },
             x: {
-              title: { 
-                display: true, 
+              title: {
+                display: true,
                 text: "Story Points",
-                font: { size: 14 }
+                font: { size: 14 },
               },
               stacked: true,
               grid: {
-                display: false
-              }
+                display: false,
+              },
             },
           },
           datasets: {
@@ -694,7 +790,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     return `${item.label}: (${item.x}, ${item.y})`;
                   }
                   // for trend line dataset show equation
-                  if (dataset.label && dataset.label.toLowerCase().includes("trend") && scatterResult.trend) {
+                  if (
+                    dataset.label &&
+                    dataset.label.toLowerCase().includes("trend") &&
+                    scatterResult.trend
+                  ) {
                     const m = scatterResult.trend.slope.toFixed(2);
                     const b = scatterResult.trend.intercept.toFixed(2);
                     return `y = ${m}x + ${b}`;
@@ -709,7 +809,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               title: { display: true, text: "Story Points" },
               beginAtZero: true,
               min: 0,
-              suggestedMax: Math.max(...scatterResult.datasets[0]?.data?.map((d: any) => d.x) || [10]) + 1,
+              suggestedMax:
+                Math.max(
+                  ...(scatterResult.datasets[0]?.data?.map((d: any) => d.x) || [
+                    10,
+                  ])
+                ) + 1,
             },
             y: {
               title: { display: true, text: "Hours" },
@@ -728,13 +833,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           maintainAspectRatio: false,
           plugins: {
             title: { display: true, text: title },
-            legend: { 
+            legend: {
               display: true,
-              position: 'top' as const,
+              position: "top" as const,
               labels: {
                 usePointStyle: true,
-                padding: 15
-              }
+                padding: 15,
+              },
             },
           },
           scales: {
@@ -749,7 +854,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           datasets: {
             bar: {
               categoryPercentage: 0.8, // Controls space between groups of bars
-              barPercentage: 0.9,      // Controls space between individual bars
+              barPercentage: 0.9, // Controls space between individual bars
             },
           },
         };
@@ -812,10 +917,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             legend: {
               display: true,
               position: "top" as const,
-              labels: { 
+              labels: {
                 font: { size: 12 },
                 usePointStyle: true,
-                padding: 20
+                padding: 20,
               },
             },
             tooltip: {
@@ -836,12 +941,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
                       `• Q3 (75th percentile): ${stats.q3.toFixed(1)}h`,
                       `• Maximum: ${stats.upperWhisker.toFixed(1)}h`,
-                      `• Outliers: ${stats.outliers.length} issues`
+                      `• Outliers: ${stats.outliers.length} issues`,
                     ];
                   }
                   return [];
-                }
-              }
+                },
+              },
             },
           },
           scales: {
@@ -854,8 +959,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               },
               stacked: true,
               grid: {
-                color: "rgba(0,0,0,0.1)"
-              }
+                color: "rgba(0,0,0,0.1)",
+              },
             },
             x: {
               title: {
@@ -865,8 +970,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               },
               stacked: true,
               grid: {
-                display: false
-              }
+                display: false,
+              },
             },
           },
           datasets: {
@@ -904,7 +1009,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   if (item && item.label) {
                     return `${item.label}: (${item.x}, ${item.y})`;
                   }
-                  if (dataset.label && dataset.label.toLowerCase().includes("trend") && modalScatterResult.trend) {
+                  if (
+                    dataset.label &&
+                    dataset.label.toLowerCase().includes("trend") &&
+                    modalScatterResult.trend
+                  ) {
                     const m = modalScatterResult.trend.slope.toFixed(2);
                     const b = modalScatterResult.trend.intercept.toFixed(2);
                     return `y = ${m}x + ${b}`;
@@ -923,7 +1032,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               },
               beginAtZero: true,
               min: 0,
-              suggestedMax: Math.max(...modalScatterResult.datasets[0]?.data?.map((d: any) => d.x) || [10]) + 1,
+              suggestedMax:
+                Math.max(
+                  ...(modalScatterResult.datasets[0]?.data?.map(
+                    (d: any) => d.x
+                  ) || [10])
+                ) + 1,
             },
             y: {
               title: { display: true, text: "Hours", font: { size: 14 } },
@@ -944,14 +1058,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           aspectRatio: 2,
           plugins: {
             title: { display: true, text: title, font: { size: 18 } },
-            legend: { 
+            legend: {
               display: true,
-              position: 'top' as const,
+              position: "top" as const,
               labels: {
                 usePointStyle: true,
                 padding: 15,
-                font: { size: 12 }
-              }
+                font: { size: 12 },
+              },
             },
           },
           scales: {
@@ -974,7 +1088,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           datasets: {
             bar: {
               categoryPercentage: 0.8, // Controls space between groups of bars
-              barPercentage: 0.9,      // Controls space between individual bars
+              barPercentage: 0.9, // Controls space between individual bars
             },
           },
         };
@@ -985,11 +1099,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         return null;
     }
 
-    return (
-      <div className="modal-chart-container">
-        {chartComponent}
-      </div>
-    );
+    return <div className="modal-chart-container">{chartComponent}</div>;
   };
 
   const toggleGraph = (graphType: keyof typeof activeGraphs) => {
@@ -1018,6 +1128,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
         <div className="header-actions">
           <span className="jira-instance">{jiraApi.getBaseUrl()}</span>
+          <button onClick={loadFieldSchema} className="field-schema-button">
+            🔍 View Field Schema
+          </button>
           <button onClick={onLogout} className="logout-button">
             Logout
           </button>
@@ -1275,6 +1388,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               </button>
             </div>
             <div className="modal-chart">{renderModalChart(modalGraph)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Field Schema Modal */}
+      {showFieldSchema && (
+        <div className="modal-overlay" onClick={() => setShowFieldSchema(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Jira Field Schema</h3>
+              <button
+                className="modal-close"
+                onClick={() => setShowFieldSchema(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-chart" style={{ overflow: 'auto', maxHeight: '70vh' }}>
+              <div style={{ padding: '20px' }}>
+                <h4>Story Point Related Fields:</h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f0f0f0' }}>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field ID</th>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field Name</th>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fieldSchema
+                      .filter(f => f.name.toLowerCase().includes('story') || f.name.toLowerCase().includes('point'))
+                      .map(field => (
+                        <tr key={field.id}>
+                          <td style={{ padding: '8px', border: '1px solid #ddd', fontFamily: 'monospace' }}>{field.id}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.name}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.schema?.type || 'N/A'}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+
+                <h4>All Custom Fields:</h4>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f0f0f0' }}>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field ID</th>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Field Name</th>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Type</th>
+                      <th style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd' }}>Custom</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fieldSchema
+                      .filter(f => f.custom)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(field => (
+                        <tr key={field.id}>
+                          <td style={{ padding: '8px', border: '1px solid #ddd', fontFamily: 'monospace' }}>{field.id}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.name}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.schema?.type || 'N/A'}</td>
+                          <td style={{ padding: '8px', border: '1px solid #ddd' }}>{field.custom ? 'Yes' : 'No'}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       )}

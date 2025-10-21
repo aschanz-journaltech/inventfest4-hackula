@@ -377,6 +377,30 @@ class JiraApiService {
   }
 
   /**
+   * Get all field metadata from Jira to understand custom fields
+   */
+  async getAllFields(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      custom: boolean;
+      schema?: { type: string; custom?: string };
+    }>
+  > {
+    if (!this.api) {
+      throw new Error("Not authenticated. Please login first.");
+    }
+
+    try {
+      const response = await this.api.get("/field");
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching field metadata:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Helper method to find story points field ID
    */
   async findStoryPointsField(projectKey: string): Promise<string | null> {
