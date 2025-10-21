@@ -1075,6 +1075,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
+        <div className="app-title">
+          <h1>🕵️ Story Point Sleuth</h1>
+          <p className="subtitle">Investigating Estimation Accuracy</p>
+        </div>
         <div className="user-info">
           <img
             src={user.avatarUrls["32x32"]}
@@ -1310,23 +1314,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             Story Points: {issue.fields.customfield_10021 || 0}
                           </span>
                           <span className="issue-time-logged">
-                            Time Logged: {
-                              (() => {
-                                let timeSpentHours = 0;
-                                if (issue.fields.timespent) {
-                                  timeSpentHours = issue.fields.timespent / 3600;
-                                } else if (issue.fields.timetracking?.timeSpentSeconds) {
-                                  timeSpentHours = issue.fields.timetracking.timeSpentSeconds / 3600;
-                                } else if (issue.fields.worklog?.worklogs && issue.fields.worklog.worklogs.length > 0) {
-                                  const totalSeconds = issue.fields.worklog.worklogs.reduce(
-                                    (sum, worklog) => sum + worklog.timeSpentSeconds,
+                            Time Logged:{" "}
+                            {(() => {
+                              let timeSpentHours = 0;
+                              if (issue.fields.timespent) {
+                                timeSpentHours = issue.fields.timespent / 3600;
+                              } else if (
+                                issue.fields.timetracking?.timeSpentSeconds
+                              ) {
+                                timeSpentHours =
+                                  issue.fields.timetracking.timeSpentSeconds /
+                                  3600;
+                              } else if (
+                                issue.fields.worklog?.worklogs &&
+                                issue.fields.worklog.worklogs.length > 0
+                              ) {
+                                const totalSeconds =
+                                  issue.fields.worklog.worklogs.reduce(
+                                    (sum, worklog) =>
+                                      sum + worklog.timeSpentSeconds,
                                     0
                                   );
-                                  timeSpentHours = totalSeconds / 3600;
-                                }
-                                return timeSpentHours > 0 ? `${timeSpentHours.toFixed(1)}h` : '0h';
-                              })()
-                            }
+                                timeSpentHours = totalSeconds / 3600;
+                              }
+                              return timeSpentHours > 0
+                                ? `${timeSpentHours.toFixed(1)}h`
+                                : "0h";
+                            })()}
                           </span>
                         </div>
                         <div className="issue-dates">
