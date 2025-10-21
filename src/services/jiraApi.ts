@@ -504,7 +504,8 @@ class JiraApiService {
             firstIssue.fields.aggregatetimeoriginalestimate,
           aggregatetimespent: firstIssue.fields.aggregatetimespent,
         });
-        console.log("🎯 Story Points field (customfield_10021):",
+        console.log(
+          "🎯 Story Points field (customfield_10021):",
           firstIssue.fields.customfield_10021
         );
 

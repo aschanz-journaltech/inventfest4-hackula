@@ -64,10 +64,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [modalGraph, setModalGraph] = useState<string | null>(null);
   const [showFieldSchema, setShowFieldSchema] = useState(false);
   const [fieldSchema, setFieldSchema] = useState<JiraField[]>([]);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    // Check localStorage for saved preference, default to false
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    // Apply dark mode class to body and save preference
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+  };
 
   const loadFieldSchema = async () => {
     try {
@@ -1102,6 +1121,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             <p>{user.emailAddress}</p>
           </div>
         </div>
+        <div className="app-title">
+          <h1>🕵️ Story Point Sleuth</h1>
+          <p className="subtitle">Investigating Estimation Accuracy</p>
+        </div>
         <div className="header-actions">
           <span className="jira-instance">{jiraApi.getBaseUrl()}</span>
           <button onClick={loadFieldSchema} className="field-schema-button">
@@ -1326,23 +1349,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                             Story Points: {issue.fields.customfield_10021 || 0}
                           </span>
                           <span className="issue-time-logged">
-                            Time Logged: {
-                              (() => {
-                                let timeSpentHours = 0;
-                                if (issue.fields.timespent) {
-                                  timeSpentHours = issue.fields.timespent / 3600;
-                                } else if (issue.fields.timetracking?.timeSpentSeconds) {
-                                  timeSpentHours = issue.fields.timetracking.timeSpentSeconds / 3600;
-                                } else if (issue.fields.worklog?.worklogs && issue.fields.worklog.worklogs.length > 0) {
-                                  const totalSeconds = issue.fields.worklog.worklogs.reduce(
-                                    (sum, worklog) => sum + worklog.timeSpentSeconds,
+                            Time Logged:{" "}
+                            {(() => {
+                              let timeSpentHours = 0;
+                              if (issue.fields.timespent) {
+                                timeSpentHours = issue.fields.timespent / 3600;
+                              } else if (
+                                issue.fields.timetracking?.timeSpentSeconds
+                              ) {
+                                timeSpentHours =
+                                  issue.fields.timetracking.timeSpentSeconds /
+                                  3600;
+                              } else if (
+                                issue.fields.worklog?.worklogs &&
+                                issue.fields.worklog.worklogs.length > 0
+                              ) {
+                                const totalSeconds =
+                                  issue.fields.worklog.worklogs.reduce(
+                                    (sum, worklog) =>
+                                      sum + worklog.timeSpentSeconds,
                                     0
                                   );
-                                  timeSpentHours = totalSeconds / 3600;
-                                }
-                                return timeSpentHours > 0 ? `${timeSpentHours.toFixed(1)}h` : '0h';
-                              })()
-                            }
+                                timeSpentHours = totalSeconds / 3600;
+                              }
+                              return timeSpentHours > 0
+                                ? `${timeSpentHours.toFixed(1)}h`
+                                : "0h";
+                            })()}
                           </span>
                         </div>
                         <div className="issue-dates">
