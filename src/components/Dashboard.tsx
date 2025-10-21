@@ -450,9 +450,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const createHistogramData = () => {
     const processedIssues = processIssuesForCharts(issues);
-    const hourEstimates = processedIssues
-      .filter((issue) => issue.timeSpentHours > 0)
-      .map((issue) => issue.timeSpentHours);
+    
+    // Filter issues that have both story points and logged time
+    const issuesWithBothFields = processedIssues.filter(
+      (issue) => issue.timeSpentHours > 0 && issue.storyPoints > 0
+    );
 
     const buckets = [
       { label: "0-5h", min: 0, max: 5 },
@@ -462,24 +464,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       { label: "40+h", min: 40, max: Infinity },
     ];
 
-    const bucketCounts = buckets.map(
-      (bucket) =>
-        hourEstimates.filter(
-          (hours) => hours >= bucket.min && hours < bucket.max
+    // Get unique story point values from the data
+    const uniqueStoryPoints = [...new Set(issuesWithBothFields.map(issue => issue.storyPoints))]
+      .sort((a, b) => a - b);
+
+    // Define colors for different story point values
+    const colorPalette = [
+      { color: "rgba(255, 99, 132, 0.6)", borderColor: "rgba(255, 99, 132, 1)" }, // Red
+      { color: "rgba(54, 162, 235, 0.6)", borderColor: "rgba(54, 162, 235, 1)" }, // Blue
+      { color: "rgba(255, 206, 86, 0.6)", borderColor: "rgba(255, 206, 86, 1)" }, // Yellow
+      { color: "rgba(75, 192, 192, 0.6)", borderColor: "rgba(75, 192, 192, 1)" }, // Teal
+      { color: "rgba(153, 102, 255, 0.6)", borderColor: "rgba(153, 102, 255, 1)" }, // Purple
+      { color: "rgba(255, 159, 64, 0.6)", borderColor: "rgba(255, 159, 64, 1)" }, // Orange
+      { color: "rgba(199, 199, 199, 0.6)", borderColor: "rgba(199, 199, 199, 1)" }, // Light Gray
+      { color: "rgba(83, 102, 255, 0.6)", borderColor: "rgba(83, 102, 255, 1)" }, // Indigo
+      { color: "rgba(255, 99, 255, 0.6)", borderColor: "rgba(255, 99, 255, 1)" }, // Magenta
+      { color: "rgba(99, 255, 132, 0.6)", borderColor: "rgba(99, 255, 132, 1)" }, // Light Green
+      { color: "rgba(255, 159, 132, 0.6)", borderColor: "rgba(255, 159, 132, 1)" }, // Peach
+      { color: "rgba(132, 99, 255, 0.6)", borderColor: "rgba(132, 99, 255, 1)" }, // Lavender
+    ];
+
+    // Create datasets for each individual story point value
+    const datasets = uniqueStoryPoints.map((storyPoint, index) => {
+      const issuesWithThisSP = issuesWithBothFields.filter(
+        (issue) => issue.storyPoints === storyPoint
+      );
+
+      const bucketCounts = buckets.map((bucket) =>
+        issuesWithThisSP.filter(
+          (issue) => issue.timeSpentHours >= bucket.min && issue.timeSpentHours < bucket.max
         ).length
+      );
+
+      // Use modulo to cycle through colors if we have more story points than colors
+      const colorIndex = index % colorPalette.length;
+      const colors = colorPalette[colorIndex];
+
+      return {
+        label: `${storyPoint} SP`,
+        data: bucketCounts,
+        backgroundColor: colors.color,
+        borderColor: colors.borderColor,
+        borderWidth: 1,
+      };
+    });
+
+    // Add a dataset for issues without story points (if any exist)
+    const issuesWithoutSP = processedIssues.filter(
+      (issue) => issue.timeSpentHours > 0 && issue.storyPoints === 0
     );
+
+    if (issuesWithoutSP.length > 0) {
+      const bucketCountsNoSP = buckets.map((bucket) =>
+        issuesWithoutSP.filter(
+          (issue) => issue.timeSpentHours >= bucket.min && issue.timeSpentHours < bucket.max
+        ).length
+      );
+
+      datasets.push({
+        label: "No Story Points",
+        data: bucketCountsNoSP,
+        backgroundColor: "rgba(128, 128, 128, 0.6)",
+        borderColor: "rgba(128, 128, 128, 1)",
+        borderWidth: 1,
+      });
+    }
 
     return {
       labels: buckets.map((b) => b.label),
-      datasets: [
-        {
-          label: "Frequency of Actual Hours Logged",
-          data: bucketCounts,
-          backgroundColor: "rgba(255, 139, 0, 0.6)",
-          borderColor: "rgba(255, 139, 0, 1)",
-          borderWidth: 1,
-        },
-      ],
+      datasets: datasets.filter(dataset => dataset.data.some(count => count > 0)), // Only show datasets with data
     };
   };
 
@@ -596,7 +649,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           maintainAspectRatio: false,
           plugins: {
             title: { display: true, text: title },
-            legend: { display: false },
+            legend: { 
+              display: true,
+              position: 'top' as const,
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
           },
           scales: {
             y: {
@@ -605,6 +665,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             },
             x: {
               title: { display: true, text: "Hours Logged" },
+            },
+          },
+          datasets: {
+            bar: {
+              categoryPercentage: 0.8, // Controls space between groups of bars
+              barPercentage: 0.9,      // Controls space between individual bars
             },
           },
         };
@@ -752,7 +818,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         break;
 
       case "histogram":
-        title = "Histogram - Distribution of Logged Hours";
+        title = "Histogram - Time Distribution by Story Points";
         chartData = createHistogramData();
         options = {
           responsive: true,
@@ -760,7 +826,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           aspectRatio: 2,
           plugins: {
             title: { display: true, text: title, font: { size: 18 } },
-            legend: { display: false },
+            legend: { 
+              display: true,
+              position: 'top' as const,
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: { size: 12 }
+              }
+            },
           },
           scales: {
             y: {
@@ -777,6 +851,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 text: "Hours Logged",
                 font: { size: 14 },
               },
+            },
+          },
+          datasets: {
+            bar: {
+              categoryPercentage: 0.8, // Controls space between groups of bars
+              barPercentage: 0.9,      // Controls space between individual bars
             },
           },
         };
@@ -885,7 +965,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 }`}
                 onClick={() => toggleGraph("histogram")}
               >
-                📊 Histogram - Distribution of Logged Hours
+                📊 Histogram - Time Distribution by Story Points
               </button>
             </div>
 
@@ -962,8 +1042,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               )}
             {activeGraphs.histogram &&
               renderRealChart(
-                "Histogram - Distribution of Logged Hours",
-                "Shows the frequency distribution of actual logged hours to identify common work effort ranges",
+                "Histogram - Time Distribution by Story Points",
+                "Shows the frequency distribution of actual logged hours broken down by story point ranges",
                 "histogram"
               )}
           </div>
@@ -1067,7 +1147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 {modalGraph === "scatterplot" &&
                   "Scatterplot - Story Points vs Logged Hours"}
                 {modalGraph === "histogram" &&
-                  "Histogram - Distribution of Logged Hours"}
+                  "Histogram - Time Distribution by Story Points"}
               </h3>
               <button
                 className="modal-close"
