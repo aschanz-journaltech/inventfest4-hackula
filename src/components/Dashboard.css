@@ -7,23 +7,14 @@
   background: white;
   padding: 1rem 2rem;
   border-bottom: 1px solid #dfe1e6;
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  gap: 1rem;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  justify-self: start;
 }
 
 .app-title {
-  text-align: center;
-  justify-self: center;
+  flex: 1;
 }
 
 .app-title h1 {
@@ -33,7 +24,6 @@
   font-weight: 700;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
 }
 
@@ -44,18 +34,10 @@
   font-style: italic;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  justify-self: end;
-}
-
 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
-  justify-self: start;
 }
 
 .user-avatar {
@@ -76,7 +58,9 @@
   font-size: 0.875rem;
 }
 
-.jira-instance {
+.header-actions {
+  display: flex;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -102,6 +86,35 @@
 
 .logout-button:hover {
   background-color: #de350b;
+}
+
+.dark-mode-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.dark-mode-button:hover {
+  background-color: #f4f5f7;
+}
+
+.field-schema-button {
+  padding: 0.5rem 1rem;
+  background-color: #0052cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.field-schema-button:hover {
+  background-color: #003d99;
 }
 
 .dashboard-content {
@@ -1052,4 +1065,378 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .dashboard-header {
+  background: #2d2d2d;
+  border-bottom: 1px solid #444444;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard.dark-mode .app-title h1 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .app-title .subtitle {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .user-info h2 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .user-info p {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .jira-instance {
+  color: #b0b0b0;
+  background-color: #3d3d3d;
+}
+
+.dashboard.dark-mode .dark-mode-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.dashboard.dark-mode .dark-mode-button:hover {
+  background-color: #444444;
+}
+
+.dashboard.dark-mode .field-schema-button {
+  background-color: #0052cc;
+  color: white;
+}
+
+.dashboard.dark-mode .field-schema-button:hover {
+  background-color: #003d99;
+}
+
+.dashboard.dark-mode .logout-button {
+  background-color: #ff5630;
+}
+
+.dashboard.dark-mode .logout-button:hover {
+  background-color: #de350b;
+}
+
+.dashboard.dark-mode .project-selector {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .project-selector label {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .project-search-input {
+  background-color: #3d3d3d;
+  border: 2px solid #555555;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .project-search-input:focus {
+  border-color: #0052cc;
+  box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.3);
+}
+
+.dashboard.dark-mode .project-search-input::placeholder {
+  color: #888888;
+}
+
+.dashboard.dark-mode .filter-info {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .project-selector select {
+  background-color: #3d3d3d;
+  border: 2px solid #555555;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .project-selector select:focus {
+  border-color: #0052cc;
+  box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.3);
+}
+
+.dashboard.dark-mode .selected-project {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .selected-project h3 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .selected-project p {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .load-issues-button {
+  background-color: #0052cc;
+}
+
+.dashboard.dark-mode .load-issues-button:hover:not(:disabled) {
+  background-color: #003d99;
+}
+
+.dashboard.dark-mode .load-issues-button:disabled {
+  background-color: #555555;
+  color: #888888;
+}
+
+.dashboard.dark-mode .issues-section {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .issues-section h3 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .issues-section .subtitle-text {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .time-filter-buttons {
+  border-top: 1px solid #444444;
+}
+
+.dashboard.dark-mode .time-filter-btn {
+  background-color: #3d3d3d;
+  border: 1px solid #555555;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .time-filter-btn:hover {
+  background-color: #4d4d4d;
+}
+
+.dashboard.dark-mode .time-filter-btn.active {
+  background-color: #0052cc;
+  color: white;
+  border-color: #0052cc;
+}
+
+.dashboard.dark-mode .show-hide-button {
+  background-color: #0052cc;
+}
+
+.dashboard.dark-mode .show-hide-button:hover {
+  background-color: #003d99;
+}
+
+.dashboard.dark-mode .graph-controls {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .graph-controls h4 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .graph-control-item label {
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .graph-display {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .chart-container {
+  background: #2d2d2d;
+}
+
+.dashboard.dark-mode .graph-title {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .issue-card {
+  background: #3d3d3d;
+  border: 1px solid #555555;
+}
+
+.dashboard.dark-mode .issue-card:hover {
+  border-color: #777777;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard.dark-mode .issue-key {
+  color: #4a90e2;
+}
+
+.dashboard.dark-mode .issue-summary {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .issue-details {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .issue-story-points,
+.dashboard.dark-mode .issue-time-logged {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .issue-metrics {
+  background-color: #3d3d3d;
+  border: 1px solid #555555;
+}
+
+.dashboard.dark-mode .story-points-display {
+  background-color: #0052cc;
+}
+
+.dashboard.dark-mode .time-logged-display {
+  background-color: #00875a;
+}
+
+.dashboard.dark-mode .issue-card.expanded {
+  background: #404040;
+  border-color: #666666;
+}
+
+.dashboard.dark-mode .modal-overlay {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.dashboard.dark-mode .modal-content {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .modal-header {
+  background-color: #3d3d3d;
+  border-bottom: 1px solid #555555;
+}
+
+.dashboard.dark-mode .modal-header h3 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .modal-close {
+  color: #b0b0b0;
+  background: none;
+}
+
+.dashboard.dark-mode .modal-close:hover {
+  color: #ffffff;
+  background-color: #555555;
+}
+
+.dashboard.dark-mode .modal-chart {
+  background: #2d2d2d;
+}
+
+.dashboard.dark-mode .modal-chart-container {
+  background: #2d2d2d;
+}
+
+.dashboard.dark-mode .modal-chart-stats {
+  background: #3d3d3d;
+  border: 1px solid #555555;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .modal-empty-chart {
+  background: #3d3d3d;
+  border: 1px solid #555555;
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .no-issues {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .graph-placeholder {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .graph-placeholder h4 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .graph-toggle-btn {
+  background: #3d3d3d;
+  border: 2px solid #555555;
+  color: #e0e0e0;
+}
+
+.dashboard.dark-mode .graph-toggle-btn:hover {
+  background: #4d4d4d;
+  border-color: #666666;
+}
+
+.dashboard.dark-mode .graph-toggle-btn.active {
+  background: #0052cc;
+  border-color: #0052cc;
+  color: white;
+}
+
+.dashboard.dark-mode .issues-header {
+  background: #2d2d2d;
+  border: 1px solid #444444;
+}
+
+.dashboard.dark-mode .issues-header:hover {
+  background-color: #3d3d3d;
+}
+
+.dashboard.dark-mode .issues-header h3 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .dropdown-arrow {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .modal h2 {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .close-button {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .close-button:hover {
+  color: #ffffff;
+}
+
+.dashboard.dark-mode .field-name {
+  color: #4a90e2;
+}
+
+.dashboard.dark-mode .field-type {
+  color: #b0b0b0;
+}
+
+.dashboard.dark-mode .loading-spinner {
+  border-color: #444444;
+  border-top-color: #0052cc;
+}
+
+.dashboard.dark-mode .error-message {
+  background-color: #3d1a1a;
+  border-color: #ff5630;
+  color: #ff8a80;
 }

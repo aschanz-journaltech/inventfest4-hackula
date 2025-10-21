@@ -56,3 +56,18 @@
     opacity: 1;
   }
 }
+
+/* Dark mode global styles */
+body.dark-mode {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+body.dark-mode .App {
+  background-color: #1a1a1a;
+}
+
+body.dark-mode .error-notification {
+  background-color: #ff5630;
+  box-shadow: 0 4px 12px rgba(255, 86, 48, 0.4);
+}

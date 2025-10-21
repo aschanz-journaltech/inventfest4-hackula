@@ -64,28 +64,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [modalGraph, setModalGraph] = useState<string | null>(null);
   const [showFieldSchema, setShowFieldSchema] = useState(false);
   const [fieldSchema, setFieldSchema] = useState<JiraField[]>([]);
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    // Check localStorage for saved preference, default to false
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     loadProjects();
   }, []);
 
+  // Load dark mode preference from localStorage on component mount
   useEffect(() => {
-    // Apply dark mode class to body and save preference
-    if (darkMode) {
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      setIsDarkMode(JSON.parse(savedDarkMode));
+    }
+  }, []);
+
+  // Save dark mode preference to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+    // Apply dark mode class to document body
+    if (isDarkMode) {
       document.body.classList.add('dark-mode');
     } else {
       document.body.classList.remove('dark-mode');
     }
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-  }, [darkMode]);
+  }, [isDarkMode]);
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    setIsDarkMode(!isDarkMode);
   };
 
   const loadFieldSchema = async () => {
@@ -1108,7 +1113,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const filteredIssues = filterIssuesByTime(issues, timeFilter);
 
   return (
-    <div className="dashboard">
+    <div className={`dashboard ${isDarkMode ? 'dark-mode' : ''}`}>
       <header className="dashboard-header">
         <div className="user-info">
           <img
@@ -1127,6 +1132,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
         <div className="header-actions">
           <span className="jira-instance">{jiraApi.getBaseUrl()}</span>
+          <button onClick={toggleDarkMode} className="dark-mode-button" title="Toggle dark mode">
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
           <button onClick={loadFieldSchema} className="field-schema-button">
             🔍 View Field Schema
           </button>
