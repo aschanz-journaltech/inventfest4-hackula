@@ -186,6 +186,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         issue.fields.customfield_10005 ||
         0;
 
+      // Debug: Log story points detection for first few issues
+      if (filteredIssues.indexOf(issue) < 3) {
+        console.log(`🔍 Story Points Debug for ${issue.key}:`, {
+          customfield_10016: issue.fields.customfield_10016,
+          customfield_10004: issue.fields.customfield_10004,
+          customfield_10002: issue.fields.customfield_10002,
+          customfield_10003: issue.fields.customfield_10003,
+          customfield_10005: issue.fields.customfield_10005,
+          detected: storyPoints
+        });
+      }
+
       // If no story points found in common fields, look for any numeric custom field
       if (storyPoints === 0) {
         const numericFields = Object.keys(issue.fields)
@@ -267,6 +279,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     const processedIssues = processIssuesForCharts(issues);
     const storyPointGroups: { [key: number]: number[] } = {};
 
+    console.log("🔍 Boxplot debug - Total processed issues:", processedIssues.length);
+    
+    // Debug: Show sample of processed issues
+    console.log("📊 Sample processed issues:", processedIssues.slice(0, 5).map(issue => ({
+      key: issue.key,
+      storyPoints: issue.storyPoints,
+      timeSpentHours: issue.timeSpentHours
+    })));
+
     processedIssues.forEach((issue) => {
       if (issue.storyPoints > 0 && issue.timeSpentHours > 0) {
         if (!storyPointGroups[issue.storyPoints]) {
@@ -275,6 +296,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         storyPointGroups[issue.storyPoints].push(issue.timeSpentHours);
       }
     });
+
+    console.log("📈 Story point groups found:", Object.keys(storyPointGroups).map(sp => ({
+      storyPoints: sp,
+      count: storyPointGroups[Number(sp)].length,
+      hours: storyPointGroups[Number(sp)]
+    })));
 
     const labels = Object.keys(storyPointGroups).sort(
       (a, b) => Number(a) - Number(b)
@@ -315,49 +342,53 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       };
     });
 
-    // Create datasets for different parts of the boxplot
+    // Create datasets for different parts of the boxplot with better colors and labels
     const datasets = [
-      // Lower whisker to Q1
+      // Lower whisker to Q1 - Light blue (bottom 25%)
       {
-        label: "Q1 Range",
+        label: "Bottom 25% (Min to Q1)",
         data: boxplotStats.map((stat) => stat.q1 - stat.lowerWhisker),
-        backgroundColor: "rgba(0, 82, 204, 0.3)",
-        borderColor: "rgba(0, 82, 204, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(173, 216, 230, 0.8)", // Light blue
+        borderColor: "rgba(100, 149, 237, 1)",
+        borderWidth: 2,
         stack: "boxplot",
       },
-      // Q1 to Median (bottom half of box)
+      // Q1 to Median (25th to 50th percentile) - Medium blue
       {
-        label: "Q1 to Median",
+        label: "25th-50th Percentile (Q1 to Median)",
         data: boxplotStats.map((stat) => stat.median - stat.q1),
-        backgroundColor: "rgba(0, 82, 204, 0.6)",
-        borderColor: "rgba(0, 82, 204, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(100, 149, 237, 0.8)", // Cornflower blue
+        borderColor: "rgba(65, 105, 225, 1)",
+        borderWidth: 2,
         stack: "boxplot",
       },
-      // Median to Q3 (top half of box)
+      // Median to Q3 (50th to 75th percentile) - Darker blue
       {
-        label: "Median to Q3",
+        label: "50th-75th Percentile (Median to Q3)",
         data: boxplotStats.map((stat) => stat.q3 - stat.median),
-        backgroundColor: "rgba(0, 82, 204, 0.8)",
-        borderColor: "rgba(0, 82, 204, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(65, 105, 225, 0.8)", // Royal blue
+        borderColor: "rgba(25, 25, 112, 1)",
+        borderWidth: 2,
         stack: "boxplot",
       },
-      // Q3 to upper whisker
+      // Q3 to upper whisker - Dark blue (top 25%)
       {
-        label: "Q3 Range",
+        label: "Top 25% (Q3 to Max)",
         data: boxplotStats.map((stat) => stat.upperWhisker - stat.q3),
-        backgroundColor: "rgba(0, 82, 204, 0.3)",
-        borderColor: "rgba(0, 82, 204, 1)",
-        borderWidth: 1,
+        backgroundColor: "rgba(25, 25, 112, 0.8)", // Midnight blue
+        borderColor: "rgba(0, 0, 128, 1)",
+        borderWidth: 2,
         stack: "boxplot",
       },
     ];
 
+    // Store boxplot statistics for enhanced tooltips
+    const boxplotStatsData = boxplotStats;
+
     return {
       labels: boxplotStats.map((stat) => stat.label),
       datasets: datasets,
+      boxplotStats: boxplotStatsData, // Add this for tooltip enhancement
     };
   };
 
@@ -391,7 +422,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       const maxX = Math.max(...xs);
       const range = maxX - minX || 1;
       const pad = range * 0.1;
-      const extMin = minX - pad;
+      const extMin = Math.max(0, minX - pad); // Ensure trend line doesn't go below 0
       const extMax = maxX + pad;
 
       return {
@@ -572,21 +603,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             legend: {
               display: true,
               position: "top" as const,
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: { size: 11 }
+              }
             },
             tooltip: {
               mode: "index" as const,
               intersect: false,
+              callbacks: {
+                afterBody: (context) => {
+                  const dataIndex = context[0].dataIndex;
+                  const boxplotData = (chartData as any).boxplotStats;
+                  if (boxplotData && boxplotData[dataIndex]) {
+                    const stats = boxplotData[dataIndex];
+                    return [
+                      "",
+                      `📊 Statistical Summary:`,
+                      `• Sample Size: ${stats.count} issues`,
+                      `• Minimum: ${stats.lowerWhisker.toFixed(1)}h`,
+                      `• Q1 (25th percentile): ${stats.q1.toFixed(1)}h`,
+                      `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
+                      `• Q3 (75th percentile): ${stats.q3.toFixed(1)}h`,
+                      `• Maximum: ${stats.upperWhisker.toFixed(1)}h`,
+                      `• Outliers: ${stats.outliers.length} issues`
+                    ];
+                  }
+                  return [];
+                }
+              }
             },
           },
           scales: {
             y: {
               beginAtZero: true,
-              title: { display: true, text: "Hours Logged" },
+              title: { 
+                display: true, 
+                text: "Hours Logged",
+                font: { size: 14 }
+              },
               stacked: true,
+              grid: {
+                color: "rgba(0,0,0,0.1)"
+              }
             },
             x: {
-              title: { display: true, text: "Story Points" },
+              title: { 
+                display: true, 
+                text: "Story Points",
+                font: { size: 14 }
+              },
               stacked: true,
+              grid: {
+                display: false
+              }
+            },
+          },
+          datasets: {
+            bar: {
+              categoryPercentage: 0.7,
+              barPercentage: 0.9,
             },
           },
           interaction: {
@@ -631,6 +708,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             x: {
               title: { display: true, text: "Story Points" },
               beginAtZero: true,
+              min: 0,
+              suggestedMax: Math.max(...scatterResult.datasets[0]?.data?.map((d: any) => d.x) || [10]) + 1,
             },
             y: {
               title: { display: true, text: "Hours" },
@@ -733,11 +812,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             legend: {
               display: true,
               position: "top" as const,
-              labels: { font: { size: 12 } },
+              labels: { 
+                font: { size: 12 },
+                usePointStyle: true,
+                padding: 20
+              },
             },
             tooltip: {
               mode: "index" as const,
               intersect: false,
+              callbacks: {
+                afterBody: (context) => {
+                  const dataIndex = context[0].dataIndex;
+                  const boxplotData = (chartData as any).boxplotStats;
+                  if (boxplotData && boxplotData[dataIndex]) {
+                    const stats = boxplotData[dataIndex];
+                    return [
+                      "",
+                      `📊 Statistical Summary:`,
+                      `• Sample Size: ${stats.count} issues`,
+                      `• Minimum: ${stats.lowerWhisker.toFixed(1)}h`,
+                      `• Q1 (25th percentile): ${stats.q1.toFixed(1)}h`,
+                      `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
+                      `• Q3 (75th percentile): ${stats.q3.toFixed(1)}h`,
+                      `• Maximum: ${stats.upperWhisker.toFixed(1)}h`,
+                      `• Outliers: ${stats.outliers.length} issues`
+                    ];
+                  }
+                  return [];
+                }
+              }
             },
           },
           scales: {
@@ -749,6 +853,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 font: { size: 14 },
               },
               stacked: true,
+              grid: {
+                color: "rgba(0,0,0,0.1)"
+              }
             },
             x: {
               title: {
@@ -757,6 +864,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 font: { size: 14 },
               },
               stacked: true,
+              grid: {
+                display: false
+              }
+            },
+          },
+          datasets: {
+            bar: {
+              categoryPercentage: 0.7,
+              barPercentage: 0.9,
             },
           },
           interaction: {
@@ -806,6 +922,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 font: { size: 14 },
               },
               beginAtZero: true,
+              min: 0,
+              suggestedMax: Math.max(...modalScatterResult.datasets[0]?.data?.map((d: any) => d.x) || [10]) + 1,
             },
             y: {
               title: { display: true, text: "Hours", font: { size: 14 } },
