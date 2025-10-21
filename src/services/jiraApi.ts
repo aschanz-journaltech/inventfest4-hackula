@@ -58,6 +58,7 @@ export interface JiraSearchResponse {
 export interface JiraOAuthConfig {
   baseUrl: string;
   clientId: string;
+  clientSecret: string;
   redirectUri: string;
 }
 
@@ -72,6 +73,7 @@ export interface JiraTokenResponse {
 export interface JiraOAuthState {
   baseUrl: string;
   clientId: string;
+  clientSecret: string;
   redirectUri: string;
 }
 
@@ -80,6 +82,7 @@ class JiraApiService {
   private accessToken: string | null = null;
   private baseUrl: string | null = null;
   private clientId: string | null = null;
+  private clientSecret: string | null = null;
 
   /**
    * Get the OAuth authorization URL for JIRA
@@ -90,11 +93,13 @@ class JiraApiService {
       ? config.baseUrl.slice(0, -1)
       : config.baseUrl;
     this.clientId = config.clientId;
+    this.clientSecret = config.clientSecret;
 
     // Store state in sessionStorage for OAuth callback
     const state = JSON.stringify({
       baseUrl: this.baseUrl,
       clientId: config.clientId,
+      clientSecret: config.clientSecret,
       redirectUri: config.redirectUri,
     } as JiraOAuthState);
 
@@ -137,6 +142,7 @@ class JiraApiService {
 
       this.baseUrl = oauthState.baseUrl;
       this.clientId = oauthState.clientId;
+      this.clientSecret = oauthState.clientSecret;
 
       // Exchange authorization code for access token
       const tokenResponse = await this.exchangeCodeForToken(code);
@@ -179,6 +185,10 @@ class JiraApiService {
       throw new Error("Client ID not set");
     }
 
+    if (!this.clientSecret) {
+      throw new Error("Client Secret not set");
+    }
+
     // Get the redirect URI from stored state
     const storedState = sessionStorage.getItem("jira_oauth_state");
     if (!storedState) {
@@ -192,17 +202,19 @@ class JiraApiService {
       clientId: this.clientId,
       redirectUri: redirectUri,
       hasCode: !!code,
+      hasClientSecret: !!this.clientSecret,
       currentUrl: window.location.href,
     });
 
     const response = await fetch("https://auth.atlassian.com/oauth/token", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: new URLSearchParams({
+      body: JSON.stringify({
         grant_type: "authorization_code",
         client_id: this.clientId,
+        client_secret: this.clientSecret,
         code,
         redirect_uri: redirectUri,
       }),
@@ -219,6 +231,7 @@ class JiraApiService {
           redirectUri: redirectUri,
           grantType: "authorization_code",
           hasCode: !!code,
+          hasClientSecret: !!this.clientSecret,
           codeLength: code?.length,
         },
         troubleshooting: {
@@ -357,6 +370,7 @@ class JiraApiService {
     this.accessToken = null;
     this.baseUrl = null;
     this.clientId = null;
+    this.clientSecret = null;
   }
 
   /**

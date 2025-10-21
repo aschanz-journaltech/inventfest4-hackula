@@ -24,6 +24,7 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
         return {
           baseUrl: parsed.baseUrl || "",
           clientId: parsed.clientId || "",
+          clientSecret: parsed.clientSecret || "",
           redirectUri: `${window.location.origin}${window.location.pathname}`,
         };
       } catch (error) {
@@ -34,11 +35,13 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
     return {
       baseUrl: "",
       clientId: "",
+      clientSecret: "",
       redirectUri: `${window.location.origin}${window.location.pathname}`,
     };
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingCallback, setIsProcessingCallback] = useState(false);
+  const [showClientSecret, setShowClientSecret] = useState(false);
 
   useEffect(() => {
     const handleOAuthCallback = async (code: string, state: string) => {
@@ -109,8 +112,8 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
 
     try {
       // Validate inputs
-      if (!config.baseUrl || !config.clientId) {
-        throw new Error("Base URL and Client ID are required");
+      if (!config.baseUrl || !config.clientId || !config.clientSecret) {
+        throw new Error("Base URL, Client ID, and Client Secret are required");
       }
 
       // Validate URL format
@@ -125,6 +128,7 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
         JSON.stringify({
           baseUrl: config.baseUrl,
           clientId: config.clientId,
+          clientSecret: config.clientSecret,
         })
       );
 
@@ -197,6 +201,31 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
           </div>
 
           <div className="form-group">
+            <label htmlFor="clientSecret">OAuth Client Secret</label>
+            <div className="password-input-container">
+              <input
+                type={showClientSecret ? "text" : "password"}
+                id="clientSecret"
+                name="clientSecret"
+                value={config.clientSecret}
+                onChange={handleInputChange}
+                placeholder="Your OAuth app client secret"
+                required
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                className="toggle-password"
+                onClick={() => setShowClientSecret(!showClientSecret)}
+                disabled={isLoading}
+              >
+                {showClientSecret ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+            <small>OAuth client secret from your Atlassian OAuth app</small>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="redirectUri">Redirect URI</label>
             <input
               type="url"
@@ -245,7 +274,7 @@ export const OAuthLogin: React.FC<OAuthLoginProps> = ({
               Add scopes: <code>read:jira-user</code> and{" "}
               <code>read:jira-work</code>
             </li>
-            <li>Copy the Client ID and paste it above</li>
+            <li>Copy the Client ID and Client Secret and paste them above</li>
           </ol>
 
           <div className="oauth-security-note">
