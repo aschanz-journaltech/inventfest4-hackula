@@ -367,6 +367,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       const median = hours[medianIndex];
       const q3 = hours[q3Index];
 
+      // Calculate mean and standard deviation
+      const mean = hours.reduce((sum, h) => sum + h, 0) / n;
+      const variance = hours.reduce((sum, h) => sum + Math.pow(h - mean, 2), 0) / n;
+      const stdDev = Math.sqrt(variance);
+
       // Calculate IQR and whiskers
       const iqr = q3 - q1;
       const lowerWhisker = Math.max(hours[0], q1 - 1.5 * iqr);
@@ -381,6 +386,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         q1,
         median,
         q3,
+        mean,
+        stdDev,
         lowerWhisker,
         upperWhisker,
         outliers,
@@ -529,6 +536,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   interface StoryPointBox {
     storyPoint: number;
     averageHours: number;
+    stdDev: number;
     issueCount: number;
     isAboveAverage: boolean;
     percentageDiff: number;
@@ -574,6 +582,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         const hours = storyPointGroups[storyPoint];
         const averageHours = hours.reduce((sum, h) => sum + h, 0) / hours.length;
 
+        // Calculate standard deviation
+        const variance = hours.reduce((sum, h) => sum + Math.pow(h - averageHours, 2), 0) / hours.length;
+        const stdDev = Math.sqrt(variance);
+
         // Calculate expected hours based on story point value
         const expectedHours = storyPoint * overallAverage;
 
@@ -595,6 +607,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         return {
           storyPoint,
           averageHours,
+          stdDev,
           issueCount: hours.length,
           isAboveAverage: averageHours > expectedHours,
           percentageDiff,
@@ -701,6 +714,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           ).length
       );
 
+      // Calculate mean and standard deviation
+      const hours = issuesWithThisSP.map((issue) => issue.timeSpentHours);
+      const mean = hours.reduce((sum, h) => sum + h, 0) / hours.length;
+      const variance = hours.reduce((sum, h) => sum + Math.pow(h - mean, 2), 0) / hours.length;
+      const stdDev = Math.sqrt(variance);
+
       // Use modulo to cycle through colors if we have more story points than colors
       const colorIndex = index % colorPalette.length;
       const colors = colorPalette[colorIndex];
@@ -718,6 +737,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           },
         ],
         totalIssues: issuesWithThisSP.length,
+        mean,
+        stdDev,
       };
     }).filter((histogram) => histogram.totalIssues > 0);
 
@@ -779,6 +800,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       "",
                       `📊 Statistical Summary:`,
                       `• Sample Size: ${stats.count} issues`,
+                      `• Mean: ${stats.mean.toFixed(1)}h`,
+                      `• Std Deviation: ${stats.stdDev.toFixed(1)}h`,
                       `• Minimum: ${stats.lowerWhisker.toFixed(1)}h`,
                       `• Q1 (25th percentile): ${stats.q1.toFixed(1)}h`,
                       `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
@@ -915,7 +938,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 plugins: {
                   title: {
                     display: true,
-                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues)`,
+                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues) - Mean: ${histogram.mean.toFixed(1)}h, Std Dev: ${histogram.stdDev.toFixed(1)}h`,
                     font: { size: 11 }
                   },
                   legend: {
@@ -1020,6 +1043,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       "",
                       `📊 Statistical Summary:`,
                       `• Sample Size: ${stats.count} issues`,
+                      `• Mean: ${stats.mean.toFixed(1)}h`,
+                      `• Std Deviation: ${stats.stdDev.toFixed(1)}h`,
                       `• Minimum: ${stats.lowerWhisker.toFixed(1)}h`,
                       `• Q1 (25th percentile): ${stats.q1.toFixed(1)}h`,
                       `• Median (50th percentile): ${stats.median.toFixed(1)}h`,
@@ -1159,7 +1184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 plugins: {
                   title: {
                     display: true,
-                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues)`,
+                    text: `${histogram.storyPoint} Story Points (${histogram.totalIssues} issues) - Mean: ${histogram.mean.toFixed(1)}h, Std Dev: ${histogram.stdDev.toFixed(1)}h`,
                     font: { size: 16 }
                   },
                   legend: {
@@ -1400,6 +1425,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                           {box.averageHours.toFixed(2)}h
                         </div>
                         <div className="box-label">avg hours</div>
+                        <div className="box-stddev">
+                          ± {box.stdDev.toFixed(2)}h
+                        </div>
+                        <div className="box-label">std dev</div>
                         <div className="box-count">{box.issueCount} issues</div>
                       </div>
                       <div className="box-status">

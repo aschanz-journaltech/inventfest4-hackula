@@ -1230,6 +1230,14 @@
   margin-bottom: 0.5rem;
 }
 
+.box-stddev {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
 .box-count {
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.95);
