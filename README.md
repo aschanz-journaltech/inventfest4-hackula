@@ -151,14 +151,51 @@ The app uses the JIRA REST API v3 with OAuth 2.0 authentication:
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 
-### Environment Setup
+### Production Deployment
 
-For production deployment, you'll need to:
+Deploy to AWS with automated Terraform infrastructure:
 
-1. **Update OAuth settings** in Atlassian Developer Console
-2. **Set production callback URL** (e.g., `https://yourdomain.com/`)
-3. **Configure HTTPS** for secure OAuth flow
-4. **Update redirect URI** in the app configuration
+#### Quick Deployment (5 minutes)
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+./deploy.sh
+```
+
+This creates:
+- ✅ S3 bucket for static hosting
+- ✅ CloudFront CDN with free SSL
+- ✅ Optional custom domain support
+- ✅ Automated OAuth redirect URI
+
+**See [DEPLOYMENT.md](DEPLOYMENT.md) for full guide**
+
+#### Quick Updates (30 seconds)
+After making code changes:
+```bash
+./quick-update.sh
+```
+Or using npm:
+```bash
+npm run deploy:quick
+```
+
+**See [QUICK_UPDATE.md](QUICK_UPDATE.md) for details**
+
+#### Deployment Documentation
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Quick deployment guide
+- [QUICK_UPDATE.md](QUICK_UPDATE.md) - Fast updates for code changes
+- [terraform/README.md](terraform/README.md) - Complete Terraform documentation
+- [terraform/QUICK_START.md](terraform/QUICK_START.md) - 5-minute deployment guide
+- [terraform/CHECKLIST.md](terraform/CHECKLIST.md) - Pre-deployment checklist
+
+#### NPM Deployment Scripts
+```bash
+npm run deploy              # Full deployment (infrastructure + files)
+npm run deploy:quick        # Quick update (files only, ~30 sec)
+npm run deploy:skip-build   # Upload only (no build)
+npm run deploy:dry-run      # Preview changes
+```
 
 ### Adding Features
 

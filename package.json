@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "./terraform/deploy.sh",
+    "deploy:quick": "./quick-update.sh",
+    "deploy:skip-build": "./quick-update.sh --skip-build",
+    "deploy:dry-run": "./quick-update.sh --dry-run"
   },
   "dependencies": {
     "@types/crypto-js": "^4.2.2",

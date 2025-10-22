@@ -1,0 +1,119 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # For OIDC authentication (recommended)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+          terraform_wrapper: false
+
+      # Option 1: AWS Credentials with OIDC (Recommended - no secrets needed)
+      # See: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        if: vars.USE_OIDC == 'true'
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      # Option 2: AWS Credentials with Access Keys (Simpler but less secure)
+      - name: Configure AWS Credentials (Access Keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        if: vars.USE_OIDC != 'true'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          TF_VAR_environment: ${{ vars.ENVIRONMENT || 'prod' }}
+          TF_VAR_app_name: ${{ vars.APP_NAME || 'story-point-sleuth' }}
+          TF_VAR_enable_custom_domain: ${{ vars.ENABLE_CUSTOM_DOMAIN || 'false' }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME || '' }}
+          TF_VAR_route53_zone_id: ${{ secrets.ROUTE53_ZONE_ID || '' }}
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Deploy to S3
+        working-directory: terraform
+        run: |
+          S3_BUCKET=$(terraform output -raw s3_bucket_name)
+
+          # Upload static assets with long cache
+          aws s3 sync ../dist/assets s3://$S3_BUCKET/assets/ \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable"
+
+          # Upload other files with short cache
+          aws s3 sync ../dist/ s3://$S3_BUCKET/ \
+            --delete \
+            --cache-control "public,max-age=3600" \
+            --exclude "assets/*"
+
+          # Upload index.html with no cache
+          aws s3 cp ../dist/index.html s3://$S3_BUCKET/index.html \
+            --cache-control "public,max-age=0,must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront
+        working-directory: terraform
+        run: |
+          DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+
+      - name: Output URL
+        working-directory: terraform
+        run: |
+          echo "### Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Website URL:**" >> $GITHUB_STEP_SUMMARY
+          echo "$(terraform output -raw website_url)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**OAuth Redirect URI:**" >> $GITHUB_STEP_SUMMARY
+          echo "$(terraform output -raw oauth_redirect_uri)" >> $GITHUB_STEP_SUMMARY

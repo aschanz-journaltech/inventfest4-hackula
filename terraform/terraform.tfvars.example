@@ -1,0 +1,26 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and customize
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "prod"
+app_name    = "story-point-sleuth"
+
+# Custom Domain (Optional)
+# Set enable_custom_domain = true to use a custom domain
+enable_custom_domain = false
+domain_name          = ""  # e.g., "sleuth.example.com"
+route53_zone_id      = ""  # e.g., "Z1234567890ABC"
+
+# CloudFront Configuration
+cloudfront_price_class = "PriceClass_100"  # US, Canada, Europe
+
+# Logging (Optional)
+enable_access_logging = false
+
+# Additional Tags
+tags = {
+  Department = "Engineering"
+  Team       = "Platform"
+  Owner      = "devops@example.com"
+}
