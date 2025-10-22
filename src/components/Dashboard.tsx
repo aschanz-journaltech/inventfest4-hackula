@@ -519,6 +519,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     averageHours: number;
     issueCount: number;
     isAboveAverage: boolean;
+    percentageDiff: number;
+    colorCategory: 'green' | 'orange' | 'red';
   }
 
   const createStoryPointBoxes = (): { boxes: StoryPointBox[]; overallAverage: number } | [] => {
@@ -560,11 +562,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         const hours = storyPointGroups[storyPoint];
         const averageHours = hours.reduce((sum, h) => sum + h, 0) / hours.length;
 
+        // Calculate expected hours based on story point value
+        const expectedHours = storyPoint * overallAverage;
+
+        // Calculate percentage difference from expected hours
+        const percentageDiff = ((averageHours - expectedHours) / expectedHours) * 100;
+
+        // Determine color category based on percentage difference
+        let colorCategory: 'green' | 'orange' | 'red';
+        const absDiff = Math.abs(percentageDiff);
+
+        if (absDiff <= 10) {
+          colorCategory = 'green';
+        } else if (absDiff <= 20) {
+          colorCategory = 'orange';
+        } else {
+          colorCategory = 'red';
+        }
+
         return {
           storyPoint,
           averageHours,
           issueCount: hours.length,
-          isAboveAverage: averageHours > overallAverage,
+          isAboveAverage: averageHours > expectedHours,
+          percentageDiff,
+          colorCategory,
         };
       })
       .sort((a, b) => a.storyPoint - b.storyPoint);
@@ -1342,7 +1364,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {boxes.map((box) => (
                     <div
                       key={box.storyPoint}
-                      className={`story-point-box ${box.isAboveAverage ? 'above-average' : 'below-average'}`}
+                      className={`story-point-box color-${box.colorCategory}`}
                     >
                       <div className="box-header">
                         <span className="box-story-points">{box.storyPoint} SP</span>
@@ -1355,7 +1377,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                         <div className="box-count">{box.issueCount} issues</div>
                       </div>
                       <div className="box-status">
-                        {box.isAboveAverage ? '▲ Above Avg' : '▼ Below Avg'}
+                        {box.percentageDiff >= 0 ? '▲' : '▼'} {Math.abs(box.percentageDiff).toFixed(1)}%
                       </div>
                     </div>
                   ))}

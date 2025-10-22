@@ -1112,14 +1112,22 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.story-point-box.above-average {
-  background: linear-gradient(135deg, #de350b 0%, #ff5630 100%);
-  border: 2px solid #bf2600;
-}
-
-.story-point-box.below-average {
+/* Green: Within 10% of average */
+.story-point-box.color-green {
   background: linear-gradient(135deg, #00875a 0%, #00a86b 100%);
   border: 2px solid #006644;
+}
+
+/* Orange: 10-20% difference from average */
+.story-point-box.color-orange {
+  background: linear-gradient(135deg, #ff8b00 0%, #ffab00 100%);
+  border: 2px solid #de7a00;
+}
+
+/* Red: Greater than 20% difference from average */
+.story-point-box.color-red {
+  background: linear-gradient(135deg, #de350b 0%, #ff5630 100%);
+  border: 2px solid #bf2600;
 }
 
 .box-header {
