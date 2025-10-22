@@ -514,6 +514,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
   };
 
+  interface StoryPointBox {
+    storyPoint: number;
+    averageHours: number;
+    issueCount: number;
+    isAboveAverage: boolean;
+  }
+
+  const createStoryPointBoxes = (): { boxes: StoryPointBox[]; overallAverage: number } | [] => {
+    const processedIssues = processIssuesForCharts(issues);
+
+    // Filter issues that have both story points and logged time
+    const issuesWithBothFields = processedIssues.filter(
+      (issue) => issue.timeSpentHours > 0 && issue.storyPoints > 0
+    );
+
+    if (issuesWithBothFields.length === 0) {
+      return [];
+    }
+
+    // Calculate average hours per story point
+    const totalHours = issuesWithBothFields.reduce(
+      (sum, issue) => sum + issue.timeSpentHours,
+      0
+    );
+    const totalStoryPoints = issuesWithBothFields.reduce(
+      (sum, issue) => sum + issue.storyPoints,
+      0
+    );
+    const overallAverage = totalHours / totalStoryPoints;
+
+    // Group by story points
+    const storyPointGroups: { [key: number]: number[] } = {};
+    issuesWithBothFields.forEach((issue) => {
+      if (!storyPointGroups[issue.storyPoints]) {
+        storyPointGroups[issue.storyPoints] = [];
+      }
+      storyPointGroups[issue.storyPoints].push(issue.timeSpentHours);
+    });
+
+    // Calculate average hours for each story point
+    const storyPointBoxes = Object.keys(storyPointGroups)
+      .map((sp) => {
+        const storyPoint = Number(sp);
+        const hours = storyPointGroups[storyPoint];
+        const averageHours = hours.reduce((sum, h) => sum + h, 0) / hours.length;
+
+        return {
+          storyPoint,
+          averageHours,
+          issueCount: hours.length,
+          isAboveAverage: averageHours > overallAverage,
+        };
+      })
+      .sort((a, b) => a.storyPoint - b.storyPoint);
+
+    return { boxes: storyPointBoxes, overallAverage };
+  };
+
   const createHistogramData = () => {
     const processedIssues = processIssuesForCharts(issues);
 
@@ -1262,6 +1320,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             </div>
           </div>
         )}
+
+        {/* Story Point Boxes */}
+        {selectedProject && issues.length > 0 && (() => {
+          const boxesData = createStoryPointBoxes();
+          if (Array.isArray(boxesData) && boxesData.length === 0) {
+            return null;
+          }
+          if ('boxes' in boxesData && 'overallAverage' in boxesData) {
+            const { boxes, overallAverage } = boxesData;
+            if (boxes.length === 0) {
+              return null;
+            }
+            return (
+              <div className="story-point-boxes-section">
+                <h3>Story Point Performance</h3>
+                <p className="section-description">
+                  Overall Average: <strong>{overallAverage.toFixed(2)} hours per story point</strong>
+                </p>
+                <div className="story-point-boxes">
+                  {boxes.map((box) => (
+                    <div
+                      key={box.storyPoint}
+                      className={`story-point-box ${box.isAboveAverage ? 'above-average' : 'below-average'}`}
+                    >
+                      <div className="box-header">
+                        <span className="box-story-points">{box.storyPoint} SP</span>
+                      </div>
+                      <div className="box-content">
+                        <div className="box-average">
+                          {box.averageHours.toFixed(2)}h
+                        </div>
+                        <div className="box-label">avg hours</div>
+                        <div className="box-count">{box.issueCount} issues</div>
+                      </div>
+                      <div className="box-status">
+                        {box.isAboveAverage ? '▲ Above Avg' : '▼ Below Avg'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* Render active graphs */}
         {selectedProject && (
