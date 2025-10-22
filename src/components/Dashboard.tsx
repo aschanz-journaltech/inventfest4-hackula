@@ -767,8 +767,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
 
     let chartComponent;
-    let chartData;
-    let options;
+    let chartData: unknown;
+    let options: unknown;
 
     switch (graphType) {
       case "boxplot":
@@ -791,9 +791,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               mode: "index" as const,
               intersect: false,
               callbacks: {
-                afterBody: (context) => {
+                afterBody: (context: Array<{ dataIndex: number }>) => {
                   const dataIndex = context[0].dataIndex;
-                  const boxplotData = (chartData as any).boxplotStats;
+                  const boxplotData = (chartData as { boxplotStats?: Array<{ count: number; mean: number; stdDev: number; lowerWhisker: number; q1: number; median: number; q3: number; upperWhisker: number; outliers: number[] }> }).boxplotStats;
                   if (boxplotData && boxplotData[dataIndex]) {
                     const stats = boxplotData[dataIndex];
                     return [
@@ -851,10 +851,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             intersect: false,
           },
         };
-        chartComponent = <Bar data={chartData} options={options} />;
+        chartComponent = <Bar data={chartData as Parameters<typeof Bar>[0]['data']} options={options as Parameters<typeof Bar>[0]['options']} />;
         break;
 
-      case "scatterplot":
+      case "scatterplot": {
         const scatterResult = createScatterplotData();
         chartData = { datasets: scatterResult.datasets };
         options = {
@@ -864,7 +864,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             title: { display: true, text: title },
             tooltip: {
               callbacks: {
-                label: (context: any) => {
+                label: (context: { datasetIndex: number; dataIndex: number; raw: { x: number; y: number } }) => {
                   const dsIndex = context.datasetIndex;
                   const dataIndex = context.dataIndex;
                   const dataset = scatterResult.datasets[dsIndex];
@@ -895,7 +895,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               min: 0,
               suggestedMax:
                 Math.max(
-                  ...(scatterResult.datasets[0]?.data?.map((d: any) => d.x) || [
+                  ...(scatterResult.datasets[0]?.data?.map((d: { x: number; y: number; label: string }) => d.x) || [
                     10,
                   ])
                 ) + 1,
@@ -907,8 +907,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           },
           interaction: { mode: "nearest" as const, intersect: false },
         };
-        chartComponent = <Scatter data={chartData} options={options} />;
+        chartComponent = <Scatter data={chartData as Parameters<typeof Scatter>[0]['data']} options={options as Parameters<typeof Scatter>[0]['options']} />;
         break;
+      }
 
       case "histogram": {
         const histograms = createHistogramData();
@@ -1007,8 +1008,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     }
 
     let chartComponent;
-    let chartData;
-    let options;
+    let chartData: unknown;
+    let options: unknown;
     let title = "";
 
     switch (graphType) {
@@ -1034,9 +1035,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               mode: "index" as const,
               intersect: false,
               callbacks: {
-                afterBody: (context) => {
+                afterBody: (context: Array<{ dataIndex: number }>) => {
                   const dataIndex = context[0].dataIndex;
-                  const boxplotData = (chartData as any).boxplotStats;
+                  const boxplotData = (chartData as { boxplotStats?: Array<{ count: number; mean: number; stdDev: number; lowerWhisker: number; q1: number; median: number; q3: number; upperWhisker: number; outliers: number[] }> }).boxplotStats;
                   if (boxplotData && boxplotData[dataIndex]) {
                     const stats = boxplotData[dataIndex];
                     return [
@@ -1094,10 +1095,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             intersect: false,
           },
         };
-        chartComponent = <Bar data={chartData} options={options} />;
+        chartComponent = <Bar data={chartData as Parameters<typeof Bar>[0]['data']} options={options as Parameters<typeof Bar>[0]['options']} />;
         break;
 
-      case "scatterplot":
+      case "scatterplot": {
         title = "Scatterplot - Story Points vs Logged Hours";
         const modalScatterResult = createScatterplotData();
         chartData = { datasets: modalScatterResult.datasets };
@@ -1109,7 +1110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             title: { display: true, text: title, font: { size: 18 } },
             tooltip: {
               callbacks: {
-                label: (context: any) => {
+                label: (context: { datasetIndex: number; dataIndex: number; raw: { x: number; y: number } }) => {
                   const dsIndex = context.datasetIndex;
                   const dataIndex = context.dataIndex;
                   const dataset = modalScatterResult.datasets[dsIndex];
@@ -1144,7 +1145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               suggestedMax:
                 Math.max(
                   ...(modalScatterResult.datasets[0]?.data?.map(
-                    (d: any) => d.x
+                    (d: { x: number; y: number; label: string }) => d.x
                   ) || [10])
                 ) + 1,
             },
@@ -1155,8 +1156,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           },
           interaction: { mode: "nearest" as const, intersect: false },
         };
-        chartComponent = <Scatter data={chartData} options={options} />;
+        chartComponent = <Scatter data={chartData as Parameters<typeof Scatter>[0]['data']} options={options as Parameters<typeof Scatter>[0]['options']} />;
         break;
+      }
 
       case "histogram": {
         title = "Histogram - Time Distribution by Story Points";

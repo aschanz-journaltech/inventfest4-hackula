@@ -10,8 +10,8 @@ export default defineConfig({
         target: 'https://api.atlassian.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/jira/, '/ex/jira'),
-        configure: (proxy, _options) => {
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
             // Forward the Authorization header from the client
             if (req.headers.authorization) {
               proxyReq.setHeader('Authorization', req.headers.authorization);

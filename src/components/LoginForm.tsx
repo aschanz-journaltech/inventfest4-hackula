@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
   jiraApi,
-  type JiraLoginCredentials,
   type JiraUser,
+  type JiraOAuthConfig,
 } from "../services/jiraApi";
 import "./LoginForm.css";
 
@@ -11,21 +11,26 @@ interface LoginFormProps {
   onError: (error: string) => void;
 }
 
+interface LoginCredentials {
+  baseUrl: string;
+  clientId: string;
+  clientSecret: string;
+}
+
 export const LoginForm: React.FC<LoginFormProps> = ({
-  onLoginSuccess,
   onError,
 }) => {
-  const [credentials, setCredentials] = useState<JiraLoginCredentials>({
+  const [credentials, setCredentials] = useState<LoginCredentials>({
     baseUrl: "",
-    email: "",
-    apiToken: "",
+    clientId: "",
+    clientSecret: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [showApiToken, setShowApiToken] = useState(false);
+  const [showClientSecret, setShowClientSecret] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCredentials((prev) => ({
+    setCredentials((prev: LoginCredentials) => ({
       ...prev,
       [name]: value,
     }));
@@ -37,7 +42,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
     try {
       // Validate inputs
-      if (!credentials.baseUrl || !credentials.email || !credentials.apiToken) {
+      if (!credentials.baseUrl || !credentials.clientId || !credentials.clientSecret) {
         throw new Error("All fields are required");
       }
 
@@ -47,13 +52,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         throw new Error("Base URL must start with http:// or https://");
       }
 
-      const user = await jiraApi.login(credentials);
-      onLoginSuccess(user);
+      const redirectUri = `${window.location.origin}/oauth/callback`;
+      const config: JiraOAuthConfig = {
+        ...credentials,
+        redirectUri,
+      };
+
+      const { url } = await jiraApi.getAuthorizationUrl(config);
+      window.location.href = url;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Login failed";
       onError(errorMessage);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -85,49 +95,49 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="clientId">OAuth Client ID</label>
             <input
-              type="email"
-              id="email"
-              name="email"
-              value={credentials.email}
+              type="text"
+              id="clientId"
+              name="clientId"
+              value={credentials.clientId}
               onChange={handleInputChange}
-              placeholder="your-email@company.com"
+              placeholder="your-oauth-client-id"
               required
               disabled={isLoading}
             />
-            <small>Your JIRA account email address</small>
+            <small>Your Atlassian OAuth 2.0 Client ID</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="apiToken">API Token</label>
+            <label htmlFor="clientSecret">OAuth Client Secret</label>
             <div className="password-input-container">
               <input
-                type={showApiToken ? "text" : "password"}
-                id="apiToken"
-                name="apiToken"
-                value={credentials.apiToken}
+                type={showClientSecret ? "text" : "password"}
+                id="clientSecret"
+                name="clientSecret"
+                value={credentials.clientSecret}
                 onChange={handleInputChange}
-                placeholder="Your API token"
+                placeholder="Your OAuth client secret"
                 required
                 disabled={isLoading}
               />
               <button
                 type="button"
                 className="toggle-password"
-                onClick={() => setShowApiToken(!showApiToken)}
+                onClick={() => setShowClientSecret(!showClientSecret)}
                 disabled={isLoading}
               >
-                {showApiToken ? "👁️" : "👁️‍🗨️"}
+                {showClientSecret ? "👁️" : "👁️‍🗨️"}
               </button>
             </div>
             <small>
               <a
-                href="https://id.atlassian.com/manage-profile/security/api-tokens"
+                href="https://developer.atlassian.com/console/myapps/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Create an API token here
+                Create an OAuth app here
               </a>
             </small>
           </div>
@@ -138,13 +148,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </form>
 
         <div className="help-section">
-          <h3>How to get your API token:</h3>
+          <h3>How to set up OAuth 2.0:</h3>
           <ol>
-            <li>Go to your Atlassian account settings</li>
-            <li>Navigate to Security → API tokens</li>
-            <li>Click "Create API token"</li>
-            <li>Give it a label and copy the token</li>
-            <li>Use that token in the field above</li>
+            <li>Go to the Atlassian Developer Console</li>
+            <li>Create a new OAuth 2.0 integration</li>
+            <li>Set the callback URL to: {window.location.origin}/oauth/callback</li>
+            <li>Add the required permissions (read:jira-user, read:jira-work)</li>
+            <li>Copy your Client ID and Client Secret</li>
           </ol>
         </div>
       </div>
