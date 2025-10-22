@@ -1087,7 +1087,50 @@
 .story-point-boxes-section .section-description {
   color: #6b778c;
   font-size: 0.95rem;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #f4f5f7;
+  border-radius: 6px;
+  border: 1px solid #dfe1e6;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #172b4d;
+  font-weight: 500;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+}
+
+.legend-green {
+  background: linear-gradient(135deg, #00875a 0%, #00a86b 100%);
+  border-color: #006644;
+}
+
+.legend-orange {
+  background: linear-gradient(135deg, #ff8b00 0%, #ffab00 100%);
+  border-color: #de7a00;
+}
+
+.legend-red {
+  background: linear-gradient(135deg, #de350b 0%, #ff5630 100%);
+  border-color: #bf2600;
 }
 
 .story-point-boxes {
@@ -1188,6 +1231,12 @@
 }
 
 @media (max-width: 768px) {
+  .legend {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
   .story-point-boxes {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 0.75rem;
@@ -1587,4 +1636,13 @@ body.dark-mode {
 
 .dashboard.dark-mode .story-point-boxes-section .section-description {
   color: #b0b0b0;
+}
+
+.dashboard.dark-mode .legend {
+  background-color: #3d3d3d;
+  border-color: #555555;
+}
+
+.dashboard.dark-mode .legend-item {
+  color: #e0e0e0;
 }

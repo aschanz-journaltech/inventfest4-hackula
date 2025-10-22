@@ -1360,6 +1360,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <p className="section-description">
                   Overall Average: <strong>{overallAverage.toFixed(2)} hours per story point</strong>
                 </p>
+                <div className="legend">
+                  <span className="legend-item">
+                    <span className="legend-color legend-green"></span>
+                    Within 10%
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-color legend-orange"></span>
+                    10-20% off
+                  </span>
+                  <span className="legend-item">
+                    <span className="legend-color legend-red"></span>
+                    &gt;20% off
+                  </span>
+                </div>
                 <div className="story-point-boxes">
                   {boxes.map((box) => (
                     <div
