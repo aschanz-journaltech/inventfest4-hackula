@@ -65,9 +65,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [showFieldSchema, setShowFieldSchema] = useState(false);
   const [fieldSchema, setFieldSchema] = useState<JiraField[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [jiraBaseUrl, setJiraBaseUrl] = useState<string>("");
 
   useEffect(() => {
     loadProjects();
+    // Get the Jira base URL for creating ticket links
+    const baseUrl = jiraApi.getBaseUrl();
+    if (baseUrl) {
+      setJiraBaseUrl(baseUrl);
+    }
   }, []);
 
   // Load dark mode preference from localStorage on component mount
@@ -175,6 +181,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Helper function to generate Jira ticket URL
+  const getJiraTicketUrl = (issueKey: string) => {
+    if (!jiraBaseUrl) return null;
+    return `${jiraBaseUrl}/browse/${issueKey}`;
   };
 
   // Filter issues by time period
@@ -1466,7 +1478,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   {filteredIssues.map((issue) => (
                     <div key={issue.id} className="issue-card">
                       <div className="issue-header">
-                        <span className="issue-key">{issue.key}</span>
+                        {getJiraTicketUrl(issue.key) ? (
+                          <a
+                            href={getJiraTicketUrl(issue.key)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="issue-key issue-key-link"
+                            title={`Open ${issue.key} in Jira`}
+                          >
+                            {issue.key}
+                          </a>
+                        ) : (
+                          <span className="issue-key">{issue.key}</span>
+                        )}
                         <span
                           className="issue-status"
                           style={{

@@ -297,6 +297,23 @@
   font-size: 0.875rem;
 }
 
+.issue-key-link {
+  text-decoration: none;
+  transition: all 0.2s ease;
+  display: inline-block;
+}
+
+.issue-key-link:hover {
+  background-color: #0052cc;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 82, 204, 0.3);
+}
+
+.issue-key-link:active {
+  transform: translateY(0);
+}
+
 .issue-status {
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
@@ -1464,6 +1481,12 @@ body.dark-mode {
 
 .dashboard.dark-mode .issue-key {
   color: #4a90e2;
+}
+
+.dashboard.dark-mode .issue-key-link:hover {
+  background-color: #4a90e2;
+  color: #1a1a1a;
+  box-shadow: 0 2px 4px rgba(74, 144, 226, 0.4);
 }
 
 .dashboard.dark-mode .issue-summary {
