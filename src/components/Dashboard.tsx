@@ -572,9 +572,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         let colorCategory: 'green' | 'orange' | 'red';
         const absDiff = Math.abs(percentageDiff);
 
-        if (absDiff <= 10) {
+        if (absDiff <= 15) {
           colorCategory = 'green';
-        } else if (absDiff <= 20) {
+        } else if (absDiff <= 30) {
           colorCategory = 'orange';
         } else {
           colorCategory = 'red';
@@ -1363,15 +1363,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 <div className="legend">
                   <span className="legend-item">
                     <span className="legend-color legend-green"></span>
-                    Within 10%
+                    Within 15%
                   </span>
                   <span className="legend-item">
                     <span className="legend-color legend-orange"></span>
-                    10-20% off
+                    15-30% off
                   </span>
                   <span className="legend-item">
                     <span className="legend-color legend-red"></span>
-                    &gt;20% off
+                    &gt;30% off
                   </span>
                 </div>
                 <div className="story-point-boxes">
